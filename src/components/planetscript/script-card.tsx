@@ -31,7 +31,8 @@ const platformMeta = {
         <line x1="11" y1="18" x2="13" y2="18" />
       </svg>
     ),
-    classes: "bg-sky-500/10 text-sky-600 border-sky-500/20",
+    classes: "bg-sky-500/10 text-sky-400 border-sky-500/20",
+    dot: "bg-sky-500",
   },
   pc: {
     label: "PC",
@@ -50,7 +51,8 @@ const platformMeta = {
         <line x1="12" y1="17" x2="12" y2="21" />
       </svg>
     ),
-    classes: "bg-violet-500/10 text-violet-600 border-violet-500/20",
+    classes: "bg-violet-500/10 text-violet-400 border-violet-500/20",
+    dot: "bg-violet-500",
   },
   universal: {
     label: "Universel",
@@ -69,14 +71,27 @@ const platformMeta = {
         <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
       </svg>
     ),
-    classes: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+    classes: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+    dot: "bg-emerald-500",
   },
 };
 
-const difficultyColor: Record<string, string> = {
-  Débutant: "text-emerald-600",
-  Intermédiaire: "text-amber-600",
-  Avancé: "text-rose-600",
+const difficultyColor: Record<
+  string,
+  { dot: string; text: string }
+> = {
+  Débutant: { dot: "bg-emerald-500", text: "text-emerald-400" },
+  Intermédiaire: { dot: "bg-amber-500", text: "text-amber-400" },
+  Avancé: { dot: "bg-orange-500", text: "text-orange-400" },
+  Expert: { dot: "bg-rose-500", text: "text-rose-400" },
+};
+
+const accentByCategory: Record<Category, string> = {
+  visual: "from-emerald-500/20 via-emerald-500/5 to-transparent",
+  remote: "from-amber-500/20 via-amber-500/5 to-transparent",
+  detection: "from-rose-500/20 via-rose-500/5 to-transparent",
+  utility: "from-violet-500/20 via-violet-500/5 to-transparent",
+  "mobile-ui": "from-sky-500/20 via-sky-500/5 to-transparent",
 };
 
 interface Props {
@@ -87,163 +102,224 @@ export function ScriptCard({ script }: Props) {
   const [open, setOpen] = useState(false);
   const cat = categoryMeta[script.category as Category];
   const pm = platformMeta[script.platform];
+  const dc = difficultyColor[script.difficulty];
 
   const copyCode = () => {
     navigator.clipboard.writeText(script.code);
-    toast.success("Code copié dans le presse-papier");
+    toast.success("Code copié", {
+      description: `${script.name} · ${script.lines} lignes`,
+    });
   };
 
   return (
     <>
       <article
         id={script.id}
-        className="group relative flex flex-col rounded-2xl border border-border/70 bg-card p-5 hover:border-border hover:shadow-lg hover:shadow-emerald-500/5 transition-all duration-200"
+        className="group relative flex flex-col rounded-2xl border border-border/60 bg-card hover:border-border hover:bg-card/80 transition-all duration-200 overflow-hidden"
       >
-        {/* Top row */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-2 flex-wrap">
-            <Badge
-              variant="outline"
-              className={`gap-1 font-medium ${pm.classes}`}
-            >
-              {pm.icon}
-              {pm.label}
-            </Badge>
-            <Badge variant="secondary" className="font-medium">
-              {cat.label}
-            </Badge>
+        {/* Top accent line */}
+        <div className={`h-px w-full bg-gradient-to-r ${accentByCategory[script.category]}`} />
+
+        <div className="p-5 flex flex-col flex-1">
+          {/* Top row: badges */}
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <Badge
+                variant="outline"
+                className={`gap-1 font-medium border ${pm.classes}`}
+              >
+                {pm.icon}
+                {pm.label}
+              </Badge>
+              <Badge
+                variant="outline"
+                className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground border-border/60"
+              >
+                {cat.short}
+              </Badge>
+            </div>
+            <span className="text-[10px] text-muted-foreground font-mono shrink-0 mt-0.5">
+              {script.lines}L
+            </span>
           </div>
-          <span className="text-xs text-muted-foreground shrink-0">
-            {script.lines} lignes
-          </span>
-        </div>
 
-        {/* Title */}
-        <h3 className="mt-3 text-lg font-semibold tracking-tight">
-          {script.name}
-        </h3>
-        <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed line-clamp-3">
-          {script.description}
-        </p>
+          {/* Title */}
+          <h3 className="mt-3.5 text-[17px] font-semibold tracking-tight leading-tight">
+            {script.name}
+          </h3>
+          <p className="mt-1 text-[12px] text-muted-foreground italic leading-relaxed">
+            {script.tagline}
+          </p>
 
-        {/* Tags */}
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {script.tags.slice(0, 4).map((t) => (
-            <span
-              key={t}
-              className="rounded-md bg-muted/70 px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground"
+          {/* Description */}
+          <p className="mt-2.5 text-[13px] text-muted-foreground/90 leading-relaxed line-clamp-3">
+            {script.description}
+          </p>
+
+          {/* Features list */}
+          <ul className="mt-4 space-y-1.5">
+            {script.features.slice(0, 3).map((f) => (
+              <li
+                key={f}
+                className="flex items-start gap-2 text-[11px] text-muted-foreground/80"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-3 w-3 mt-0.5 shrink-0 text-emerald-500"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                {f}
+              </li>
+            ))}
+          </ul>
+
+          {/* Meta footer */}
+          <div className="mt-5 pt-3.5 border-t border-border/40 flex items-center justify-between text-[11px]">
+            <div className="flex items-center gap-3">
+              <span className={`flex items-center gap-1.5 ${dc.text}`}>
+                <span className={`h-1.5 w-1.5 rounded-full ${dc.dot}`} />
+                {script.difficulty}
+              </span>
+              <span className="flex items-center gap-1 text-muted-foreground">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-3 w-3 text-amber-400"
+                  fill="currentColor"
+                >
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                </svg>
+                <span className="tabular-nums">{script.rating.toFixed(1)}</span>
+              </span>
+              <span className="text-muted-foreground tabular-nums">
+                {(script.downloads / 1000).toFixed(1)}k
+              </span>
+            </div>
+            <span className="text-muted-foreground font-mono tabular-nums">
+              {script.updated.slice(5)}
+            </span>
+          </div>
+
+          {/* Actions */}
+          <div className="mt-4 flex items-center gap-2">
+            <Button
+              size="sm"
+              className="flex-1 h-9"
+              onClick={() => setOpen(true)}
             >
-              {t}
-            </span>
-          ))}
-        </div>
-
-        {/* Meta footer */}
-        <div className="mt-4 flex items-center justify-between border-t border-border/60 pt-3 text-xs">
-          <div className="flex items-center gap-3">
-            <span className="text-muted-foreground">
-              <span className={difficultyColor[script.difficulty]}>
-                ●
-              </span>{" "}
-              {script.difficulty}
-            </span>
-            <span className="flex items-center gap-1 text-muted-foreground">
               <svg
                 viewBox="0 0 24 24"
-                className="h-3 w-3"
+                className="h-3.5 w-3.5 mr-1.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="16 18 22 12 16 6" />
+                <polyline points="8 6 2 12 8 18" />
+              </svg>
+              Voir le code
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={copyCode}
+              className="h-9 w-9 p-0"
+              aria-label="Copier le code"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                className="h-3.5 w-3.5"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
               </svg>
-              {script.rating.toFixed(1)}
-            </span>
-            <span className="text-muted-foreground tabular-nums">
-              {(script.downloads / 1000).toFixed(1)}k
-            </span>
+            </Button>
           </div>
-          <span className="text-muted-foreground tabular-nums">
-            {script.updated}
-          </span>
-        </div>
-
-        {/* Actions */}
-        <div className="mt-4 flex items-center gap-2">
-          <Button
-            size="sm"
-            className="flex-1"
-            onClick={() => setOpen(true)}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              className="h-3.5 w-3.5 mr-1"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <polyline points="16 18 22 12 16 6" />
-              <polyline points="8 6 2 12 8 18" />
-            </svg>
-            Voir le code
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={copyCode}
-            className="group/btn"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              className="h-3.5 w-3.5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-            </svg>
-          </Button>
         </div>
       </article>
 
       {/* Code dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-3xl max-h-[85vh] p-0 gap-0 overflow-hidden">
-          <DialogHeader className="px-5 pt-5 pb-3 border-b border-border/60">
-            <div className="flex items-center justify-between gap-3 pr-8">
-              <DialogTitle className="text-base font-semibold">
-                {script.name}
-              </DialogTitle>
-              <div className="flex items-center gap-1.5">
-                <Badge
-                  variant="outline"
-                  className={`gap-1 ${pm.classes}`}
-                >
-                  {pm.icon}
-                  {pm.label}
-                </Badge>
-                <Badge variant="secondary">{cat.label}</Badge>
+        <DialogContent className="max-w-4xl max-h-[90vh] p-0 gap-0 overflow-hidden border-border/60 bg-card">
+          <DialogHeader className="px-6 pt-5 pb-4 border-b border-border/50 bg-secondary/20">
+            <div className="flex items-start justify-between gap-3 pr-8">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-2">
+                  <Badge
+                    variant="outline"
+                    className={`gap-1 ${pm.classes}`}
+                  >
+                    {pm.icon}
+                    {pm.label}
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground"
+                  >
+                    {cat.short}
+                  </Badge>
+                  <span className={`flex items-center gap-1 text-[11px] ${dc.text}`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${dc.dot}`} />
+                    {script.difficulty}
+                  </span>
+                </div>
+                <DialogTitle className="text-lg font-semibold tracking-tight">
+                  {script.name}
+                </DialogTitle>
+                <p className="text-[13px] text-muted-foreground mt-0.5 italic">
+                  {script.tagline}
+                </p>
               </div>
             </div>
-            <DialogDescription className="text-xs">
-              par {script.author} · mis à jour le {script.updated} ·{" "}
-              {script.lines} lignes · difficulté {script.difficulty.toLowerCase()}
+            <DialogDescription className="text-[11px] mt-2 flex items-center gap-3 flex-wrap">
+              <span>par <span className="text-foreground/80">{script.author}</span></span>
+              <span className="text-border">·</span>
+              <span>{script.lines} lignes</span>
+              <span className="text-border">·</span>
+              <span>mis à jour le {script.updated}</span>
+              <span className="text-border">·</span>
+              <span>{(script.downloads / 1000).toFixed(1)}k downloads</span>
+              <span className="text-border">·</span>
+              <span className="text-amber-400">★ {script.rating.toFixed(1)}</span>
             </DialogDescription>
           </DialogHeader>
 
-          <div className="relative flex-1 overflow-hidden">
-            <div className="absolute right-3 top-3 z-10 flex items-center gap-2">
-              <Button size="sm" variant="secondary" onClick={copyCode}>
+          {/* Features row */}
+          <div className="px-6 py-3 border-b border-border/50 bg-secondary/10 flex flex-wrap gap-1.5">
+            {script.features.map((f) => (
+              <span
+                key={f}
+                className="rounded-md bg-secondary/60 px-2 py-1 text-[10px] text-muted-foreground"
+              >
+                {f}
+              </span>
+            ))}
+          </div>
+
+          {/* Code viewer */}
+          <div className="relative flex-1 overflow-hidden bg-[#0d1117]">
+            <div className="absolute right-3 top-3 z-10">
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={copyCode}
+                className="bg-secondary/80 backdrop-blur-sm"
+              >
                 <svg
                   viewBox="0 0 24 24"
-                  className="h-3.5 w-3.5 mr-1"
+                  className="h-3.5 w-3.5 mr-1.5"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2"
@@ -256,25 +332,25 @@ export function ScriptCard({ script }: Props) {
                 Copier
               </Button>
             </div>
-            <pre className="max-h-[60vh] overflow-auto bg-[#0d1117] text-[#c9d1d9] p-5 pt-12 text-[12.5px] leading-relaxed font-mono">
-              <code>{highlightLua(script.code)}</code>
+            <pre className="max-h-[55vh] overflow-auto p-5 text-[12.5px] leading-[1.65] font-mono">
+              <code className="text-[#c9d1d9]">{highlightLua(script.code)}</code>
             </pre>
           </div>
 
-          <div className="border-t border-border/60 px-5 py-3 bg-muted/30 flex items-center justify-between text-xs">
+          {/* Footer */}
+          <div className="border-t border-border/50 px-6 py-3 bg-secondary/20 flex items-center justify-between text-[11px]">
             <div className="flex flex-wrap gap-1.5">
               {script.tags.map((t) => (
                 <span
                   key={t}
-                  className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-muted-foreground"
+                  className="rounded-md bg-secondary/60 px-1.5 py-0.5 font-mono text-muted-foreground"
                 >
                   #{t}
                 </span>
               ))}
             </div>
-            <span className="text-muted-foreground tabular-nums">
-              {(script.downloads / 1000).toFixed(1)}k downloads · ⭐{" "}
-              {script.rating.toFixed(1)}
+            <span className="text-muted-foreground font-mono">
+              Lua · Roblox executor
             </span>
           </div>
         </DialogContent>
@@ -294,19 +370,27 @@ function highlightLua(code: string): React.ReactNode {
     "true", "false", "in", "repeat", "until", "break", "continue",
   ]);
 
+  const globals = new Set([
+    "game", "workspace", "script", "print", "warn", "tostring",
+    "tonumber", "pcall", "task", "string", "table", "math", "os",
+    "Instance", "Vector2", "Vector3", "CFrame", "Color3", "UDim2",
+    "UDim", "Enum", "Drawing", "TweenInfo", "require", "ipairs",
+    "pairs", "type", "setmetatable", "getmetatable", "typeof",
+    "next", "select", "error", "assert", "tick", "wait",
+  ]);
+
   lines.forEach((line, lineIdx) => {
-    // Comment detection
-    const commentMatch = line.match(/^(.*?)(--.*)$/);
+    // Comment detection (basic — avoids matching -- inside strings)
     let codePart = line;
     let comment = "";
-
-    if (commentMatch && !line.includes('"--')) {
-      codePart = commentMatch[1];
-      comment = commentMatch[2];
+    const inString = false;
+    const commentIdx = findCommentStart(line);
+    if (commentIdx >= 0) {
+      codePart = line.slice(0, commentIdx);
+      comment = line.slice(commentIdx);
     }
 
-    // Tokenize code part
-    const regex = /("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\b\d+\.?\d*\b|\b\w+\b|[^\s\w])/g;
+    const regex = /("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\[\[(?:[^\]]|\](?!\]))*\]\]|\b\d+\.?\d*\b|\b\w+\b|[^\s\w])/g;
     let m: RegExpExecArray | null;
     let lastIdx = 0;
     const parts: React.ReactNode[] = [];
@@ -317,7 +401,7 @@ function highlightLua(code: string): React.ReactNode {
         parts.push(<span key={key++}>{codePart.slice(lastIdx, m.index)}</span>);
       }
       const tok = m[0];
-      if (tok.startsWith('"') || tok.startsWith("'")) {
+      if (tok.startsWith('"') || tok.startsWith("'") || tok.startsWith("[[")) {
         parts.push(
           <span key={key++} style={{ color: "#a5d6ff" }}>{tok}</span>
         );
@@ -329,8 +413,11 @@ function highlightLua(code: string): React.ReactNode {
         parts.push(
           <span key={key++} style={{ color: "#ff7b72" }}>{tok}</span>
         );
+      } else if (globals.has(tok)) {
+        parts.push(
+          <span key={key++} style={{ color: "#d2a8ff" }}>{tok}</span>
+        );
       } else if (/^[A-Z]\w*$/.test(tok)) {
-        // Global / class-like
         parts.push(
           <span key={key++} style={{ color: "#ffa657" }}>{tok}</span>
         );
@@ -338,8 +425,12 @@ function highlightLua(code: string): React.ReactNode {
         parts.push(
           <span key={key++} style={{ color: "#8b949e" }}>{tok}</span>
         );
+      } else if (tok === "=" || tok === "." || tok === ":" || tok === "," || tok === ";") {
+        parts.push(
+          <span key={key++} style={{ color: "#8b949e" }}>{tok}</span>
+        );
       } else {
-        parts.push(<span key={key++}>{tok}</span>);
+        parts.push(<span key={key++} style={{ color: "#c9d1d9" }}>{tok}</span>);
       }
       lastIdx = m.index + tok.length;
     }
@@ -359,4 +450,20 @@ function highlightLua(code: string): React.ReactNode {
   });
 
   return tokens;
+}
+
+// Find the index where a comment starts (-- not inside a string)
+function findCommentStart(line: string): number {
+  let inStr: string | null = null;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inStr) {
+      if (c === "\\") { i++; continue; }
+      if (c === inStr) inStr = null;
+    } else {
+      if (c === '"' || c === "'") inStr = c;
+      else if (c === "-" && line[i + 1] === "-") return i;
+    }
+  }
+  return -1;
 }
