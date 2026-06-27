@@ -174,9 +174,13 @@ end
 function Pool:get(player, kind)
   self.items[player] = self.items[player] or {}
   if not self.items[player][kind] then
-    self.items[player][kind] = Drawing.new(kind == "Box" and "Square"
-      or kind == "Health" and "Square"
-      or "Text")
+    local drawType = "Text"
+    if kind == "Box" or kind == "Health" then
+      drawType = "Square"
+    elseif kind == "Tracer" then
+      drawType = "Line"
+    end
+    self.items[player][kind] = Drawing.new(drawType)
   end
   return self.items[player][kind]
 end
@@ -596,7 +600,10 @@ RunService.RenderStepped:Connect(function(dt)
     local char = LocalPlayer.Character
     local hrp  = char and char:FindFirstChild("HumanoidRootPart")
     local mem  = Stats:GetTotalMemoryUsageMb()
-    local ping = LocalPlayer:GetNetworkPing() * 1000
+    local ping = 0
+    if LocalPlayer.GetNetworkPing then
+      pcall(function() ping = LocalPlayer:GetNetworkPing() * 1000 end)
+    end
 
     StatsLabel.Text = string.format(
       "FPS  %d\\nPING %dms\\nMEM  %.0fMB\\nPOS  %s",
@@ -1730,7 +1737,10 @@ end)
 -- Sample ping/mem every 1s
 task.spawn(function()
   while task.wait(1) do
-    local ping = LP:GetNetworkPing() * 1000
+    local ping = 0
+    if LP.GetNetworkPing then
+      pcall(function() ping = LP:GetNetworkPing() * 1000 end)
+    end
     local mem = Stats:GetTotalMemoryUsageMb()
     push(pingHistory, ping)
     push(memHistory, mem)
@@ -2493,11 +2503,6 @@ function Library:_updateTabCanvas()
   self.tabList.CanvasSize = UDim2.new(0, width, 0, 0)
 end
 
--- ─── Section ────────────────────────────────────────────────
-function tab_section(tab, name)
-  -- Already injected below
-end
-
 -- ─── Component factory ──────────────────────────────────────
 local function attachSection(tab, name)
   local section = Instance.new("Frame")
@@ -2965,8 +2970,10 @@ UserInput.InputChanged:Connect(function(i)
   if i.UserInputType == Enum.UserInputType.Touch
      or i.UserInputType == Enum.UserInputType.MouseMovement then
     local center = joyBg.AbsolutePosition + joyBg.AbsoluteSize / 2
-    local delta = i.Position - center
+    local touchPos = Vector2.new(i.Position.X, i.Position.Y)
+    local delta = touchPos - center
     local maxR = joyBg.AbsoluteSize.X / 2 - 22
+    if maxR <= 0 then return end
     local clamped = delta.Magnitude > maxR and delta.Unit * maxR or delta
     joyKnob.Position = UDim2.fromOffset(
       joyBg.AbsoluteSize.X / 2 - 22 + clamped.X,
@@ -3208,5 +3215,90 @@ end)
 _G.PlanetScript = _G.PlanetScript or {}
 _G.PlanetScript.MobileAim = Config
 print("[planetscript] Mobile Aim Assist loaded")`,
+  },
+  // ─────────────────────────────────────────── TEST / DEMO ───────────────────────────────────────────
+  {
+    id: "hello-world",
+    name: "Hello World Test",
+    tagline: "Script de test — fonctionne partout, même Studio",
+    description:
+      "Script de vérification minimal qui fonctionne dans Roblox Studio ET tous les exécuteurs. Affiche une notification à l'écran, log dans la console, et crée une GUI simple. Utilise-le pour vérifier que ton exécuteur ou Studio fonctionne avant de charger les scripts complexes.",
+    category: "utility",
+    platform: "universal",
+    tags: ["Test", "Demo", "Studio", "Hello World"],
+    lines: 42,
+    difficulty: "Débutant",
+    author: "planetscript",
+    updated: "2026-06-28",
+    downloads: 99900,
+    rating: 5.0,
+    features: [
+      "Fonctionne dans Studio",
+      "Pas de fonctions d'exécuteur",
+      "Notification GUI + console",
+      "Test de compatibilité",
+    ],
+    code: `-- Hello World Test · planetscript
+-- Ce script fonctionne PARTOUT : Studio, mobile, PC, tous exécuteurs
+-- Utilise-le pour vérifier que ton environnement marche avant
+-- de charger les scripts complexes (ESP, RemoteSpy, etc.)
+
+local Players = game:GetService("Players")
+local LP = Players.LocalPlayer
+local pg = LP:WaitForChild("PlayerGui")
+
+-- ─── GUI notification ───────────────────────────────────────
+local gui = Instance.new("ScreenGui")
+gui.Name = "PS_HelloTest"
+gui.ResetOnSpawn = false
+gui.Parent = pg
+
+local card = Instance.new("Frame")
+card.Size = UDim2.fromOffset(280, 80)
+card.Position = UDim2.new(0.5, -140, 0, 16)
+card.BackgroundColor3 = Color3.fromRGB(13, 17, 23)
+card.BorderSizePixel = 0
+card.Parent = gui
+Instance.new("UICorner", card).CornerRadius = UDim.new(0, 10)
+local stroke = Instance.new("UIStroke", card)
+stroke.Color = Color3.fromRGB(52, 211, 153)
+stroke.Thickness = 1.5
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -24, 0, 20)
+title.Position = UDim2.fromOffset(12, 12)
+title.BackgroundTransparency = 1
+title.Text = "planetscript"
+title.TextColor3 = Color3.fromRGB(52, 211, 153)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 13
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = card
+
+local body = Instance.new("TextLabel")
+body.Size = UDim2.new(1, -24, 0, 40)
+body.Position = UDim2.fromOffset(12, 32)
+body.BackgroundTransparency = 1
+body.Text = "Script de test chargé avec succès !\\nEnvironnement OK."
+body.TextColor3 = Color3.fromRGB(201, 209, 217)
+body.Font = Enum.Font.Gotham
+body.TextSize = 11
+body.TextWrapped = true
+body.TextXAlignment = Enum.TextXAlignment.Left
+body.TextYAlignment = Enum.TextYAlignment.Top
+body.Parent = card
+
+-- ─── Console log ────────────────────────────────────────────
+print("═══════════════════════════════════════")
+print("  planetscript · Hello World Test")
+print("  Environnement : " .. (game:GetService("RunService"):IsStudio() and "Studio" or "Live Game"))
+print("  Joueur : " .. LP.Name)
+print("  Statut : OK")
+print("═══════════════════════════════════════")
+
+-- Auto-destroy after 5 seconds
+task.delay(5, function()
+  card:Destroy()
+end)`,
   },
 ];
