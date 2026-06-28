@@ -19,6 +19,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/aeronscript/pocketmcp/main/i
 #   - node 18+ (si manquant)
 #   - bun 1.3+ (si manquant)
 #   - clone le repo pocketmcp
+#   - bun install (dépendances npm)
 #   - configure le PATH dans ~/.bashrc
 # durée typique : 3 à 5 minutes selon votre connexion`,
     note: "nécessite termux depuis f-droid (pas le play store, qui est obsolète). connexion internet requise pendant l'install.",

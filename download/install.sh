@@ -58,7 +58,7 @@ fi
 echo -e "${GREEN}  ✓ Bun $(bun --version)${NC}"
 
 # 4. Cloner le repo
-echo -e "${YELLOW}[4/5] clonage du serveur...${NC}"
+echo -e "${YELLOW}[4/6] clonage du serveur...${NC}"
 if [ -d "$INSTALL_DIR" ]; then
   echo -e "${YELLOW}  repo existant, mise à jour...${NC}"
   cd "$INSTALL_DIR"
@@ -68,8 +68,22 @@ else
   cd "$INSTALL_DIR"
 fi
 
-# 5. Démarrer le serveur
-echo -e "${YELLOW}[5/5] démarrage du serveur...${NC}"
+# 5. Installer les dépendances npm
+echo -e "${YELLOW}[5/6] installation des dépendances (bun install)...${NC}"
+if [ -f "package.json" ]; then
+  bun install >/dev/null 2>&1
+  if [ $? -eq 0 ]; then
+    echo -e "${GREEN}  ✓ dépendances installées${NC}"
+  else
+    echo -e "${RED}  ✗ échec bun install — essayez manuellement: cd ~/pocketmcp && bun install${NC}"
+    exit 1
+  fi
+else
+  echo -e "${YELLOW}  ⚠ package.json introuvable — skipped${NC}"
+fi
+
+# 6. Démarrer le serveur
+echo -e "${YELLOW}[6/6] vérification finale...${NC}"
 echo ""
 echo -e "${GREEN}═══════════════════════════════════════════════════${NC}"
 echo -e "${GREEN}  ✓ pocketmcp installé !${NC}"

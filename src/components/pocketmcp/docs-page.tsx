@@ -494,7 +494,7 @@ pkg install curl`} />
       <H2>étape 2 — installer pocketmcp</H2>
       <P>
         une seule commande. le script installe node.js et bun si manquants,
-        clone le repo, et configure le PATH.
+        clone le repo, installe les dépendances npm, et configure le PATH.
       </P>
       <CodeBlock lang="bash" code={`bash <(curl -fsSL https://raw.githubusercontent.com/aeronscript/pocketmcp/main/install.sh)
 
@@ -502,8 +502,14 @@ pkg install curl`} />
 #   - node 18+ (si manquant)
 #   - bun 1.3+ (si manquant)
 #   - clone le repo dans ~/pocketmcp
+#   - bun install (dépendances npm)
 #   - configure le PATH dans ~/.bashrc
 # durée typique : 3 à 5 minutes selon votre connexion`} />
+      <Callout type="info" title="si bun install échoue">
+        si le script affiche "échec bun install", lancez-le manuellement :<br/>
+        <Code>cd ~/pocketmcp && bun install</Code><br/>
+        ça peut arriver si le réseau est instable pendant le téléchargement des dépendances.
+      </Callout>
 
       <H2>étape 3 — démarrer le serveur</H2>
       <CodeBlock lang="bash" code={`cd ~/pocketmcp
