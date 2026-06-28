@@ -31,6 +31,7 @@ interface RobloxClient {
     firebuttonclick: boolean;
     firesignal: boolean;
     screenshot: boolean;
+    webSocket: boolean;
   };
 }
 
@@ -482,7 +483,7 @@ async function handleMCP(req: Request): Promise<Response> {
       result = {
         protocolVersion: "2024-11-05",
         capabilities: { tools: {}, resources: {} },
-        serverInfo: { name: "pocketmcp", version: "0.2.0" },
+        serverInfo: { name: "pocketmcp", version: "0.3.0" },
       };
       log("info", "mcp", `Session initialized: ${sessionId}`);
     } else if (method === "notifications/initialized") {
@@ -718,6 +719,7 @@ function renderDashboard(): string {
   }
   .badge-online { background: #1a4731; color: #4ade80; }
   .badge-http { background: #3b3220; color: #fbbf24; }
+  .badge-transport { background: #1e293b; color: #38bdf8; }
   .logs {
     background: #0d1117; border: 1px solid #21262d;
     border-radius: 6px; padding: 10px; height: 400px; overflow-y: auto;
@@ -840,12 +842,13 @@ async function refresh() {
           <div class="client-name">\${c.playerName}
             <span class="badge badge-online">●</span>
             <span class="badge badge-http">\${c.httpMode || 'request'}</span>
+            <span class="badge badge-transport">\${c.transport || 'HTTP Polling'}</span>
           </div>
           <div class="client-info">
             clientId: \${c.clientId}<br>
-            executor: \${c.executor} · transport: \${c.transport}<br>
-            uptime: \${c.uptime}s · placeId: \${c.placeId}<br>
-            supports: decompile=\${c.supports?.decompile || false}, drawing=\${c.supports?.drawing || false}, files=\${c.supports?.writefile || false}
+            executor: \${c.executor} · uptime: \${c.uptime}s · placeId: \${c.placeId}<br>
+            supports: decompile=\${c.supports?.decompile || false}, drawing=\${c.supports?.drawing || false}, files=\${c.supports?.writefile || false}, ws=\${c.supports?.webSocket || false}<br>
+            <span style="color:#fbbf24">⚠ WebSocket mort sur mobile → HTTP polling 100ms activé automatiquement</span>
           </div>
         </div>
       \`).join('');
@@ -877,10 +880,11 @@ const server = Bun.serve({
   port: PORT, hostname: HOST, fetch: handleRequest,
 });
 
-log("success", "server", `pocketmcp v0.2.0 démarré sur http://${HOST}:${PORT}`);
+log("success", "server", `pocketmcp v0.3.0 démarré sur http://${HOST}:${PORT}`);
 log("info", "server", `Dashboard: http://localhost:${PORT}/`);
-log("info", "server", `Bridge Lua: http://localhost:${PORT}/script.luau`);
+log("info", "server", `Bridge Lua: http://localhost:${PORT}/script.luau (auto-detect WebSocket)`);
 log("info", "server", `MCP endpoint: http://localhost:${PORT}/mcp (${MCP_TOOLS.length} tools)`);
+log("info", "server", `HTTP polling: 100ms (WebSocket mort sur mobile, auto-bascule)`);
 log("info", "server", `Health: http://localhost:${PORT}/health`);
 console.log("─────────────────────────────────────────────");
 console.log("  bridge à coller dans roblox :");

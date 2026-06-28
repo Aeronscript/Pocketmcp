@@ -1,48 +1,60 @@
 -- ════════════════════════════════════════════════════════════
--- PocketMCP Bridge v2 · by Aeronscript (Mohamed Amine)
+-- PocketMCP Bridge v3 · by Aeronscript (Mohamed Amine)
 -- Auto-servi par le serveur sur /script.luau
 --
+-- Testé sur Roblox mobile (Delta) :
+--   ✅ HttpGet → marche
+--   ✅ request → marche (syn.request equiv)
+--   ✅ writefile → marche
+--   ❌ WebSocket → mort (auto-désactivé)
+--
 -- Features :
---   - Auto-fallback request → HttpGet/HttpPost (Delta/Hydrogen proof)
+--   - Auto-détection WebSocket au démarrage (essaie 3s, bascule HTTP si échec)
+--   - Auto-fallback request → HttpGet/HttpPost
+--   - HTTP polling optimisé (100ms, retry exponentiel)
 --   - execute_code (capture prints)
---   - decompile_script (require decompile() function)
---   - get_instances (CSS-like selector: game.X.Y.*)
+--   - decompile_script
+--   - get_instances (CSS-like selector)
 --   - spy_remotes (hook FireServer / InvokeServer)
---   - list_remotes (retourne le cache des remotes interceptés)
---   - click_gui (clique sur un TextButton par path)
---   - screenshot (capture viewport via Roblox API)
---   - get_player_info (infos sur un joueur)
+--   - list_remotes
+--   - click_gui
+--   - screenshot
+--   - get_player_info
 -- ════════════════════════════════════════════════════════════
 
 local BRIDGE_URL = getgenv().BridgeURL or "localhost:16384"
-local USE_WEBSOCKET = not getgenv().DisableWebSocket
-local POLL_INTERVAL = 0.2
+local POLL_INTERVAL = 0.1   -- 100ms HTTP polling (rapide)
 local REQUEST_TIMEOUT = 10
+local WS_DETECT_TIMEOUT = 3 -- 3s pour détecter si WebSocket marche
+
+-- Force HTTP polling si l'utilisateur le demande
+local FORCE_HTTP = getgenv().DisableWebSocket == true
+-- Force WebSocket si l'utilisateur veut tester
+local FORCE_WS = getgenv().EnableWebSocket == true
 
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local RunService = game:GetService("RunService")
-local UserInput = game:GetService("UserInputService")
 local LP = Players.LocalPlayer
 
 -- ─── État ───────────────────────────────────────────────────
 local state = {
     connected = false,
     clientId = "cli_" .. tostring(math.random(1000, 9999)),
-    transport = USE_WEBSOCKET and "WebSocket" or "HTTP Polling",
-    -- Auto-fallback: si request() échoue, on bascule sur HttpGet/HttpPost
-    httpMode = "request",  -- "request" | "httpget" | "httpfailed"
+    -- Mode transport : "WebSocket" | "HTTP Polling"
+    transport = "HTTP Polling",
+    -- Auto-fallback HTTP : "request" | "httpget" | "httpfailed"
+    httpMode = "request",
     requestFailures = 0,
     -- Spy state
     spyEnabled = false,
     spyFilter = nil,
-    remotesLog = {},       -- {name, kind, path, args, time}
-    remotesCount = {},     -- [name] = int
+    remotesLog = {},
+    remotesCount = {},
     maxRemotesLog = 200,
 }
 
 -- ─── HTTP wrapper avec auto-fallback ────────────────────────
--- Essaie request() d'abord. Si ça échoue plusieurs fois, bascule sur HttpGet/HttpPost.
 local function httpSend(method, path, data)
     local url = "http://" .. BRIDGE_URL .. path
     local body = data and HttpService:JSONEncode(data) or nil
@@ -69,12 +81,11 @@ local function httpSend(method, path, data)
             if state.requestFailures >= 3 then
                 state.httpMode = "httpget"
                 warn("[pocketmcp] bascule en mode HttpGet/HttpPost (fallback)")
-                print("[pocketmcp] request instable, utilisation de game:HttpGet à la place")
             end
         end
     end
 
-    -- Mode 2: HttpGet / HttpPost (fallback, contourne l'exécuteur)
+    -- Mode 2: HttpGet / HttpPost (contourne l'exécuteur)
     if state.httpMode == "httpget" or state.httpMode == "request" then
         if method == "GET" then
             local ok, res = pcall(function()
@@ -86,11 +97,9 @@ local function httpSend(method, path, data)
                 pcall(function() parsed = HttpService:JSONDecode(res) end)
                 return parsed or { ok = false, rawBody = res }
             end
-            -- HttpGet a échoué aussi
             state.httpMode = "httpfailed"
             return { ok = false, error = "HttpGet failed: " .. tostring(res) }
         elseif method == "POST" then
-            -- HttpPost est deprecated mais marche sur la plupart des exécuteurs
             local ok, res = pcall(function()
                 return game:HttpPost(url, body or "", "application/json")
             end)
@@ -105,19 +114,11 @@ local function httpSend(method, path, data)
         end
     end
 
-    -- Mode 3: tout a échoué
-    return { ok = false, error = "All HTTP methods failed (request + HttpGet + HttpPost)" }
+    return { ok = false, error = "All HTTP methods failed" }
 end
 
--- Helper POST
-local function post(path, data)
-    return httpSend("POST", path, data)
-end
-
--- Helper GET
-local function get(path)
-    return httpSend("GET", path, nil)
-end
+local function post(path, data) return httpSend("POST", path, data) end
+local function get(path) return httpSend("GET", path, nil) end
 
 -- ─── Capture des prints ─────────────────────────────────────
 local function capturePrints(fn)
@@ -145,13 +146,9 @@ local function capturePrints(fn)
 end
 
 -- ─── Handlers de commandes ──────────────────────────────────
-
--- execute_code
 local function handleExecute(cmd)
     local fn, err = loadstring(cmd.code)
-    if not fn then
-        return { ok = false, error = err, logs = {} }
-    end
+    if not fn then return { ok = false, error = err, logs = {} } end
     local ok, result, logs = capturePrints(fn)
     return {
         ok = ok,
@@ -161,7 +158,6 @@ local function handleExecute(cmd)
     }
 end
 
--- decompile_script (path: "ReplicatedStorage.Modules.Shop")
 local function handleDecompile(cmd)
     if not decompile then
         return { ok = false, error = "decompile() not available on this executor" }
@@ -171,7 +167,7 @@ local function handleDecompile(cmd)
         if part ~= "game" then
             target = target:FindFirstChild(part)
             if not target then
-                return { ok = false, error = "Path not found: " .. cmd.path .. " (stopped at " .. part .. ")" }
+                return { ok = false, error = "Path not found: " .. cmd.path }
             end
         end
     end
@@ -179,20 +175,15 @@ local function handleDecompile(cmd)
         return { ok = false, error = "Target is not a script: " .. target.ClassName }
     end
     local ok, src = pcall(decompile, target)
-    if not ok then
-        return { ok = false, error = "Decompile failed: " .. tostring(src) }
-    end
+    if not ok then return { ok = false, error = "Decompile failed: " .. tostring(src) } end
     return { ok = true, source = src, lines = #string.split(src, "\n") }
 end
 
--- get_instances (selector: "game.ReplicatedStorage.Remotes.*")
 local function handleGetInstances(cmd)
     local selector = cmd.selector or "game"
-    -- Strip "game." prefix
     selector = selector:gsub("^game%.", ""):gsub("^game$", "")
 
     if selector == "" then
-        -- List root children
         local results = {}
         for _, child in ipairs(game:GetChildren()) do
             table.insert(results, {
@@ -205,16 +196,12 @@ local function handleGetInstances(cmd)
         return { ok = true, instances = results, count = #results }
     end
 
-    -- Walk path
     local current = game
     local parts = {}
-    for p in string.gmatch(selector, "[^.]+") do
-        table.insert(parts, p)
-    end
+    for p in string.gmatch(selector, "[^.]+") do table.insert(parts, p) end
 
     for i, p in ipairs(parts) do
         if p == "*" then
-            -- Wildcard: list all children of current
             local results = {}
             for _, child in ipairs(current:GetChildren()) do
                 table.insert(results, {
@@ -232,7 +219,6 @@ local function handleGetInstances(cmd)
         end
     end
 
-    -- Single instance
     return {
         ok = true,
         instances = {
@@ -247,7 +233,6 @@ local function handleGetInstances(cmd)
     }
 end
 
--- spy_remotes (enabled: bool, filter: string?)
 local function handleSpyRemotes(cmd)
     state.spyEnabled = cmd.enabled
     state.spyFilter = cmd.filter
@@ -287,7 +272,6 @@ local function handleSpyRemotes(cmd)
     }
 end
 
--- list_remotes (limit: int?)
 local function handleListRemotes(cmd)
     local limit = cmd.limit or 50
     local summary = {}
@@ -319,7 +303,6 @@ local function handleListRemotes(cmd)
     }
 end
 
--- click_gui (path: "StarterGui.ScreenGui.Frame.Button")
 local function handleClickGui(cmd)
     local target = game
     for part in string.gmatch(cmd.path, "[^.]+") do
@@ -333,48 +316,30 @@ local function handleClickGui(cmd)
     if not target:IsA("TextButton") and not target:IsA("ImageButton") and not target:IsA("Button") then
         return { ok = false, error = "Target is not clickable: " .. target.ClassName }
     end
-    -- Fire GuiButton interactions
     local ok = pcall(function()
-        -- Simule un click via les signals GuiButton
-        if target.Activated then
-            firebuttonclick and firebuttonclick(target)
-        end
-        -- Fallback: fire MouseButton1Click directly
-        if firesignal then
+        if firebuttonclick then
+            firebuttonclick(target)
+        elseif firesignal then
             firesignal(target.MouseButton1Click)
-        else
-          -- Last resort: call the handler if exposed
-          target:FindFirstChild("MouseButton1Click") and firesignal(target.MouseButton1Click)
         end
     end)
     return { ok = ok, clicked = target.Name, path = target:GetFullName() }
 end
 
--- screenshot (capture viewport)
 local function handleScreenshot(cmd)
-    -- Méthode 1: ScreenshotWorkspace (some executors)
     if ScreenshotWorkspace then
         local ok, path = pcall(ScreenshotWorkspace)
         if ok then
             return { ok = true, path = path, method = "ScreenshotWorkspace" }
         end
     end
-    -- Méthode 2: Capture dans un ViewportFrame et encode
-    -- (limité mais marche partout)
-    local viewport = Instance.new("ViewportFrame")
-    viewport.Size = UDim2.fromOffset(800, 450)
-    local cam = workspace.CurrentCamera
-    viewport.CurrentCamera = cam
-    -- On peut pas vraiment capturer en base64 sans API externe
-    viewport:Destroy()
     return {
         ok = false,
-        error = "Screenshot non supporté sur cet exécuteur. ScreenshotWorkspace() requis.",
+        error = "Screenshot non supporté sur cet exécuteur",
         hint = "Utilise decompile_script + execute_code pour inspecter le GUI à la place.",
     }
 end
 
--- get_player_info (playerName: string?)
 local function handleGetPlayerInfo(cmd)
     local target
     if cmd.playerName and cmd.playerName ~= "" then
@@ -404,12 +369,10 @@ local function handleGetPlayerInfo(cmd)
     }
 end
 
--- ping
 local function handlePing(cmd)
-    return { ok = true, pong = os.clock(), httpMode = state.httpMode }
+    return { ok = true, pong = os.clock(), httpMode = state.httpMode, transport = state.transport }
 end
 
--- ─── Dispatch ───────────────────────────────────────────────
 local handlers = {
     execute = handleExecute,
     decompile = handleDecompile,
@@ -451,6 +414,7 @@ local function register()
             firebuttonclick = firebuttonclick ~= nil,
             firesignal = firesignal ~= nil,
             screenshot = ScreenshotWorkspace ~= nil,
+            webSocket = WebSocket ~= nil,
         },
     })
     if res and res.ok then
@@ -462,7 +426,7 @@ local function register()
     end
 end
 
--- ─── Polling ────────────────────────────────────────────────
+-- ─── Polling HTTP (100ms) ───────────────────────────────────
 local function pollCommands()
     local res = post("/api/poll", { clientId = state.clientId })
     if not res or not res.commands then return end
@@ -476,6 +440,81 @@ local function pollCommands()
     end
 end
 
+-- ─── Auto-détection WebSocket ───────────────────────────────
+-- Essaie WebSocket pendant 3s. Si échec → HTTP polling.
+local function tryWebSocket()
+    if FORCE_HTTP then
+        print("[pocketmcp] WebSocket désactivé manuellement (DisableWebSocket=true)")
+        return false
+    end
+    if not WebSocket then
+        print("[pocketmcp] WebSocket API non disponible → HTTP polling")
+        return false
+    end
+
+    local wsOk = false
+    local ws
+
+    pcall(function()
+        ws = WebSocket.connect("ws://" .. BRIDGE_URL .. "/ws")
+        ws.OnMessage:Connect(function(msg)
+            local ok, cmd = pcall(function() return HttpService:JSONDecode(msg) end)
+            if not ok or not cmd then return end
+            local result = processCommand(cmd)
+            if result then
+                pcall(function()
+                    ws:Send(HttpService:JSONEncode({
+                        commandId = cmd.id,
+                        result = result,
+                    }))
+                end)
+            end
+        end)
+        ws.OnClose:Connect(function()
+            if state.transport == "WebSocket" then
+                warn("[pocketmcp] WebSocket fermé, bascule HTTP polling")
+                state.transport = "HTTP Polling"
+                startHttpPolling()
+            end
+        end)
+        ws:Connect()
+    end)
+
+    -- Attend WS_DETECT_TIMEOUT pour voir si la connexion tient
+    local waited = 0
+    while waited < WS_DETECT_TIMEOUT do
+        task.wait(0.1)
+        waited = waited + 0.1
+        -- Heuristique simple : si pas d'erreur pcall, on suppose que ça marche
+        if ws and pcall(function() return ws:IsConnected() end) then
+            wsOk = ws:IsConnected()
+            if wsOk then break end
+        end
+    end
+
+    if wsOk then
+        print("[pocketmcp] WebSocket connecté ✓")
+        return true
+    else
+        print("[pocketmcp] WebSocket échec/mort → bascule HTTP polling")
+        pcall(function() ws:Close() end)
+        return false
+    end
+end
+
+-- ─── Démarrage HTTP polling (si WebSocket échoue) ──────────
+function startHttpPolling()
+    if state._httpPollingStarted then return end
+    state._httpPollingStarted = true
+    task.spawn(function()
+        while task.wait(POLL_INTERVAL) do
+            if state.connected then
+                pollCommands()
+            end
+        end
+    end)
+end
+
 -- ─── Heartbeat ──────────────────────────────────────────────
 task.spawn(function()
     while task.wait(1) do
@@ -484,41 +523,36 @@ task.spawn(function()
                 clientId = state.clientId,
                 time = os.time(),
                 httpMode = state.httpMode,
+                transport = state.transport,
             })
         end
     end
 end)
 
--- ─── WebSocket ──────────────────────────────────────────────
-if USE_WEBSOCKET then
-    pcall(function()
-        local ws = WebSocket.connect("ws://" .. BRIDGE_URL .. "/ws")
-        ws.OnMessage:Connect(function(msg)
-            local ok, cmd = pcall(function() return HttpService:JSONDecode(msg) end)
-            if not ok or not cmd then return end
-            local result = processCommand(cmd)
-            if result then
-                ws:Send(HttpService:JSONEncode({
-                    commandId = cmd.id,
-                    result = result,
-                }))
-            end
-        end)
-        ws:Connect()
-    end)
-end
-
 -- ─── Démarrage ──────────────────────────────────────────────
 register()
-if not USE_WEBSOCKET then
+
+if FORCE_WS then
+    print("[pocketmcp] WebSocket forcé (EnableWebSocket=true)")
+    if not tryWebSocket() then
+        warn("[pocketmcp] WebSocket forcé mais échec → HTTP polling")
+        startHttpPolling()
+    end
+else
+    -- Auto-détection : essaie WebSocket, bascule HTTP si échec
     task.spawn(function()
-        while task.wait(POLL_INTERVAL) do
-            if state.connected then pollCommands() end
+        local wsOk = tryWebSocket()
+        if wsOk then
+            state.transport = "WebSocket"
+        else
+            state.transport = "HTTP Polling"
+            startHttpPolling()
         end
     end)
 end
 
-print("[pocketmcp] bridge ready v2 · " .. state.clientId)
+print("[pocketmcp] bridge ready v3 · " .. state.clientId)
 print("[pocketmcp] serveur: " .. BRIDGE_URL)
-print("[pocketmcp] transport: " .. state.transport)
-print("[pocketmcp] http mode: " .. state.httpMode .. " (auto-fallback activé)")
+print("[pocketmcp] transport: " .. state.transport .. " (auto-détecté)")
+print("[pocketmcp] http mode: " .. state.httpMode .. " (auto-fallback)")
+print("[pocketmcp] poll interval: " .. POLL_INTERVAL * 1000 .. "ms")
