@@ -92,7 +92,7 @@ export function Hero() {
             </a>
             <a
               href="#dashboard"
-              className="inline-flex items-center gap-2 rounded-md border border-border bg-secondary/30 backdrop-blur-sm px-4 sm:px-5 py-2.5 sm:py-3 text-[12px] sm:text-sm font-medium hover:bg-secondary/60 transition-colors font-mono"
+              className="inline-flex items-center gap-2 rounded-md border border-primary/50 bg-secondary/30 backdrop-blur-sm px-4 sm:px-5 py-2.5 sm:py-3 text-[12px] sm:text-sm font-medium text-foreground hover:bg-secondary/60 hover:border-primary transition-colors font-mono"
             >
               voir le dashboard
             </a>
