@@ -25,9 +25,10 @@ const SECTIONS: { id: Section; label: string; icon: string; desc: string }[] = [
 
 interface Props {
   onBack: () => void;
+  onNavigate?: (section: string) => void;
 }
 
-export function DocsPage({ onBack }: Props) {
+export function DocsPage({ onBack, onNavigate }: Props) {
   const [section, setSection] = useState<Section>("intro");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -35,6 +36,14 @@ export function DocsPage({ onBack }: Props) {
   useEffect(() => {
     document.getElementById("docs-content")?.scrollTo(0, 0);
   }, [section]);
+
+  // Handle navigation to home section
+  const goToSection = (id: string) => {
+    onBack();
+    setTimeout(() => {
+      document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+  };
 
   return (
     <div className="fixed inset-0 z-50 bg-background flex flex-col">
@@ -62,6 +71,23 @@ export function DocsPage({ onBack }: Props) {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {/* Liens rapides vers sections home */}
+              <nav className="hidden md:flex items-center gap-0.5 mr-2">
+                {[
+                  { label: "dash", id: "dashboard" },
+                  { label: "bridge", id: "bridge" },
+                  { label: "setup", id: "setup" },
+                  { label: "tools", id: "tools" },
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => goToSection(item.id)}
+                    className="px-2.5 py-1 text-[12px] text-foreground/60 hover:text-foreground rounded-md hover:bg-secondary/60 transition-colors font-mono"
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </nav>
               <span className="hidden sm:inline-flex items-center gap-1.5 h-7 px-2.5 text-[11px] font-mono text-primary bg-primary/10 rounded-full border border-primary/20">
                 <span className="h-1.5 w-1.5 rounded-full bg-primary pulse-green" />
                 v0.3.0
