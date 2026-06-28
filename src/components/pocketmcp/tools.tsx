@@ -3,57 +3,71 @@
 const TOOLS = [
   {
     name: "execute_code",
-    desc: "exécute du code lua dans le client roblox connecté",
-    args: "{ code: string, clientId?: string }",
-    returns: "string",
+    desc: "exécute du code lua dans roblox, capture les prints/warns",
+    args: "{ code: string, clientId? }",
+    returns: "logs[] + result",
     icon: "▶",
   },
   {
+    name: "decompile_script",
+    desc: "décompile un localscript/modulescript par son path",
+    args: "{ path: string }",
+    returns: "source lua",
+    icon: "⚒",
+  },
+  {
     name: "get_instances",
-    desc: "récupère des instances via sélecteur css-like",
+    desc: "sélecteur css-like: game.ReplicatedStorage.Remotes.*",
     args: "{ selector: string }",
     returns: "Instance[]",
     icon: "▤",
   },
   {
-    name: "decompile_script",
-    desc: "décompile un localscript / modulescript",
-    args: "{ path: string }",
-    returns: "string (source)",
-    icon: "⚒",
-  },
-  {
     name: "spy_remotes",
-    desc: "active / désactive l'interception des remotes",
-    args: "{ enabled: bool, filter?: string }",
+    desc: "hook fireserver / invokeserver, capture les args",
+    args: "{ enabled: bool, filter? }",
     returns: "void",
     icon: "◈",
   },
   {
+    name: "list_remotes",
+    desc: "résumé des remotes interceptés + events récents",
+    args: "{ limit? }",
+    returns: "summary + recent[]",
+    icon: "≡",
+  },
+  {
     name: "click_gui",
-    desc: "clique sur un bouton in-game par path",
+    desc: "clique sur un textbutton par path via firesignal",
     args: "{ path: string }",
     returns: "bool",
     icon: "◉",
   },
   {
     name: "screenshot",
-    desc: "capture l'écran roblox (fallback: screenshotview)",
+    desc: "capture l'écran (si screenshotworkspace dispo)",
     args: "{}",
-    returns: "base64 image",
+    returns: "base64 | path",
     icon: "▣",
   },
   {
-    name: "list_clients",
-    desc: "liste les clients roblox connectés",
-    args: "{}",
-    returns: "Client[]",
-    icon: "≡",
+    name: "get_player_info",
+    desc: "health, position, walkspeed, team, character",
+    args: "{ playerName? }",
+    returns: "PlayerInfo",
+    icon: "○",
   },
   {
-    name: "console_logs",
-    desc: "récupère les logs récents du jeu",
-    args: "{ level?: string, limit?: int }",
+    name: "list_clients",
+    desc: "liste les clients roblox connectés + supports",
+    args: "{}",
+    returns: "Client[]",
+    icon: "▣",
+  },
+  {
+    name: "get_logs",
+    desc: "récupère les logs serveur récents",
+    args: "{ limit? }",
     returns: "LogEntry[]",
     icon: "▤",
   },
@@ -66,7 +80,7 @@ export function Tools() {
         <div className="mb-10">
           <div className="flex items-center gap-2 text-xs font-mono text-primary mb-2">
             <span className="h-px w-8 bg-primary/40" />
-            MCP TOOLS · 8 ENDPOINTS
+            MCP TOOLS · 10 ENDPOINTS
           </div>
           <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight font-mono">
             <span className="text-muted-foreground">$</span> available tools

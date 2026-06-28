@@ -1,6 +1,6 @@
 // ════════════════════════════════════════════════════════════
-// PocketMCP Server · by Aeronscript (Mohamed Amine)
-// Serveur MCP Roblox pour mobile (Termux + Bun)
+// PocketMCP Server v2 · by Aeronscript (Mohamed Amine)
+// Serveur MCP Roblox mobile-first — full feature set
 // Port: 16384
 // ════════════════════════════════════════════════════════════
 
@@ -10,9 +10,9 @@ import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = 16384;
-const HOST = "0.0.0.0"; // 0.0.0.0 pour partager sur LAN
+const HOST = "0.0.0.0";
 
-// ─── État global ────────────────────────────────────────────
+// ─── Types ──────────────────────────────────────────────────
 interface RobloxClient {
   clientId: string;
   playerName: string;
@@ -20,15 +20,24 @@ interface RobloxClient {
   placeId: number;
   jobId: string;
   transport: string;
+  executor: string;
   connectedAt: number;
   lastHeartbeat: number;
-  fps?: number;
+  httpMode?: string;
+  supports?: {
+    decompile: boolean;
+    drawing: boolean;
+    writefile: boolean;
+    firebuttonclick: boolean;
+    firesignal: boolean;
+    screenshot: boolean;
+  };
 }
 
 interface Command {
   id: string;
-  type: "execute" | "ping";
-  code?: string;
+  type: string;
+  [key: string]: any;
   createdAt: number;
 }
 
@@ -45,29 +54,26 @@ interface LogEntry {
   message: string;
 }
 
+// ─── État global ────────────────────────────────────────────
 const clients = new Map<string, RobloxClient>();
 const commandQueues = new Map<string, Command[]>();
 const results = new Map<string, CommandResult[]>();
 const logs: LogEntry[] = [];
-const MAX_LOGS = 200;
+const MAX_LOGS = 300;
 
 function log(level: LogEntry["level"], source: string, message: string) {
   const entry: LogEntry = {
     time: new Date().toLocaleTimeString("fr-FR"),
-    level,
-    source,
-    message,
+    level, source, message,
   };
   logs.push(entry);
   if (logs.length > MAX_LOGS) logs.shift();
   const colors: Record<string, string> = {
-    info: "\x1b[36m",
-    warn: "\x1b[33m",
-    error: "\x1b[31m",
-    success: "\x1b[32m",
+    info: "\x1b[36m", warn: "\x1b[33m",
+    error: "\x1b[31m", success: "\x1b[32m",
   };
   console.log(
-    `${colors[level]}[${entry.time}] [${level.toUpperCase()}]${"\x1b[0m"} [${source}] ${message}`
+    `${colors[level]}[${entry.time}] [${level.toUpperCase()}]\x1b[0m [${source}] ${message}`
   );
 }
 
@@ -75,201 +81,11 @@ function genId(): string {
   return "cmd_" + Math.random().toString(36).slice(2, 10);
 }
 
-// ─── CORS helper ────────────────────────────────────────────
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Accept, MCP-Session-Id",
 };
-
-// ─── HTTP routes ────────────────────────────────────────────
-async function handleRequest(req: Request): Promise<Response> {
-  const url = new URL(req.url);
-  const path = url.pathname;
-  const method = req.method;
-
-  // CORS preflight
-  if (method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: CORS });
-  }
-
-  // ─── GET / ─── Dashboard minimal
-  if (path === "/" && method === "GET") {
-    return new Response(renderDashboard(), {
-      headers: { "Content-Type": "text/html; charset=utf-8", ...CORS },
-    });
-  }
-
-  // ─── GET /health ─── Health check
-  if (path === "/health" && method === "GET") {
-    return jsonResponse({
-      ok: true,
-      port: PORT,
-      clients: clients.size,
-      uptime: process.uptime(),
-    });
-  }
-
-  // ─── GET /script.luau ─── Auto-serve le bridge
-  if (path === "/script.luau" && method === "GET") {
-    const bridgePath = join(__dirname, "bridge.lua");
-    if (!existsSync(bridgePath)) {
-      return new Response("-- bridge.lua introuvable", { status: 404 });
-    }
-    const code = readFileSync(bridgePath, "utf-8");
-    return new Response(code, {
-      headers: { "Content-Type": "text/plain; charset=utf-8", ...CORS },
-    });
-  }
-
-  // ─── POST /api/register ─── Enregistrement client Roblox
-  if (path === "/api/register" && method === "POST") {
-    try {
-      const body = await req.json();
-      const client: RobloxClient = {
-        clientId: body.clientId || genId(),
-        playerName: body.playerName || "Unknown",
-        userId: body.userId || 0,
-        placeId: body.placeId || 0,
-        jobId: body.jobId || "",
-        transport: body.transport || "HTTP Polling",
-        connectedAt: Date.now(),
-        lastHeartbeat: Date.now(),
-      };
-      clients.set(client.clientId, client);
-      commandQueues.set(client.clientId, []);
-      results.set(client.clientId, []);
-      log("success", "bridge", `Client connecté: ${client.playerName} (${client.clientId}) · ${client.transport}`);
-      return jsonResponse({ ok: true, clientId: client.clientId });
-    } catch (e: any) {
-      log("error", "api", `register failed: ${e.message}`);
-      return jsonResponse({ ok: false, error: e.message }, 400);
-    }
-  }
-
-  // ─── POST /api/poll ─── Client récupère ses commandes
-  if (path === "/api/poll" && method === "POST") {
-    try {
-      const body = await req.json();
-      const clientId = body.clientId;
-      const queue = commandQueues.get(clientId) || [];
-      const commands = queue.splice(0, queue.length); // drain
-      if (commands.length > 0) {
-        log("info", "bridge", `${clientId} polled ${commands.length} command(s)`);
-      }
-      return jsonResponse({ ok: true, commands });
-    } catch (e: any) {
-      return jsonResponse({ ok: false, error: e.message }, 400);
-    }
-  }
-
-  // ─── POST /api/result ─── Client envoie son résultat
-  if (path === "/api/result" && method === "POST") {
-    try {
-      const body = await req.json();
-      const clientId = body.clientId;
-      const result: CommandResult = {
-        commandId: body.commandId,
-        result: body.result,
-        receivedAt: Date.now(),
-      };
-      const list = results.get(clientId) || [];
-      list.push(result);
-      if (list.length > 50) list.shift();
-      results.set(clientId, list);
-
-      // Log le résultat
-      const r = body.result || {};
-      if (r.ok) {
-        log("success", "exec", `command ${body.commandId} OK`);
-        if (r.logs && r.logs.length > 0) {
-          for (const l of r.logs.slice(0, 5)) {
-            log("info", "stdout", l);
-          }
-        }
-      } else {
-        log("error", "exec", `command ${body.commandId} failed: ${r.error || "?"}`);
-      }
-      return jsonResponse({ ok: true });
-    } catch (e: any) {
-      return jsonResponse({ ok: false, error: e.message }, 400);
-    }
-  }
-
-  // ─── POST /api/heartbeat ─── Heartbeat client
-  if (path === "/api/heartbeat" && method === "POST") {
-    try {
-      const body = await req.json();
-      const client = clients.get(body.clientId);
-      if (client) {
-        client.lastHeartbeat = Date.now();
-        if (body.fps) client.fps = body.fps;
-      }
-      return jsonResponse({ ok: true });
-    } catch {
-      return jsonResponse({ ok: false }, 400);
-    }
-  }
-
-  // ─── GET /api/clients ─── Liste clients (pour dashboard)
-  if (path === "/api/clients" && method === "GET") {
-    const now = Date.now();
-    const list = Array.from(clients.values()).map((c) => ({
-      ...c,
-      online: now - c.lastHeartbeat < 5000,
-    }));
-    return jsonResponse({ ok: true, clients: list });
-  }
-
-  // ─── GET /api/logs ─── Logs récents (pour dashboard)
-  if (path === "/api/logs" && method === "GET") {
-    return jsonResponse({ ok: true, logs });
-  }
-
-  // ─── POST /api/execute ─── Execute code via HTTP direct (sans MCP)
-  if (path === "/api/execute" && method === "POST") {
-    try {
-      const body = await req.json();
-      const { code, clientId } = body;
-      const target = clientId || getFirstClient();
-      if (!target) {
-        return jsonResponse({ ok: false, error: "Aucun client connecté" }, 400);
-      }
-      const cmd: Command = {
-        id: genId(),
-        type: "execute",
-        code,
-        createdAt: Date.now(),
-      };
-      const queue = commandQueues.get(target) || [];
-      queue.push(cmd);
-      commandQueues.set(target, queue);
-      log("info", "mcp", `execute_code queued on ${target} (${cmd.id})`);
-
-      // Attendre le résultat (max 10s)
-      const result = await waitForResult(target, cmd.id, 10000);
-      if (result) {
-        return jsonResponse({ ok: true, commandId: cmd.id, result: result.result });
-      }
-      return jsonResponse({ ok: false, error: "timeout (10s)" });
-    } catch (e: any) {
-      return jsonResponse({ ok: false, error: e.message }, 500);
-    }
-  }
-
-  // ─── POST /mcp ─── Endpoint MCP (HTTP + SSE response)
-  if (path === "/mcp" && method === "POST") {
-    return await handleMCP(req);
-  }
-
-  // ─── GET /mcp ─── SSE stream (notifications)
-  if (path === "/mcp" && method === "GET") {
-    return handleMCPStream(req);
-  }
-
-  // 404
-  return new Response("Not found", { status: 404, headers: CORS });
-}
 
 function jsonResponse(data: any, status = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -281,7 +97,7 @@ function jsonResponse(data: any, status = 200): Response {
 function getFirstClient(): string | null {
   const now = Date.now();
   for (const [id, c] of clients) {
-    if (now - c.lastHeartbeat < 5000) return id;
+    if (now - c.lastHeartbeat < 10000) return id;
   }
   return null;
 }
@@ -305,178 +121,463 @@ async function waitForResult(
   return null;
 }
 
-// ─── MCP Protocol (JSON-RPC 2.0 over HTTP) ──────────────────
+// Envoie une commande à un client et attend le résultat
+async function sendCommand(
+  clientId: string,
+  cmd: Omit<Command, "id" | "createdAt">,
+  timeoutMs = 30000
+): Promise<any> {
+  const command: Command = {
+    id: genId(),
+    createdAt: Date.now(),
+    ...cmd,
+  };
+  const queue = commandQueues.get(clientId) || [];
+  queue.push(command);
+  commandQueues.set(clientId, queue);
+  log("info", "mcp", `→ ${cmd.type} on ${clientId} (${command.id})`);
+
+  const result = await waitForResult(clientId, command.id, timeoutMs);
+  if (result) {
+    const r = result.result;
+    if (r.ok) {
+      log("success", "exec", `✓ ${cmd.type} OK (${command.id})`);
+    } else {
+      log("error", "exec", `✗ ${cmd.type} failed: ${r.error || "?"} (${command.id})`);
+    }
+    return r;
+  }
+  log("warn", "mcp", `⏱ ${cmd.type} timeout (${command.id})`);
+  return { ok: false, error: `Timeout after ${timeoutMs / 1000}s` };
+}
+
+// ─── HTTP routes ────────────────────────────────────────────
+async function handleRequest(req: Request): Promise<Response> {
+  const url = new URL(req.url);
+  const path = url.pathname;
+  const method = req.method;
+
+  if (method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: CORS });
+  }
+
+  // Dashboard
+  if (path === "/" && method === "GET") {
+    return new Response(renderDashboard(), {
+      headers: { "Content-Type": "text/html; charset=utf-8", ...CORS },
+    });
+  }
+
+  if (path === "/health" && method === "GET") {
+    return jsonResponse({
+      ok: true,
+      port: PORT,
+      clients: clients.size,
+      uptime: process.uptime(),
+    });
+  }
+
+  if (path === "/script.luau" && method === "GET") {
+    const bridgePath = join(__dirname, "bridge.lua");
+    if (!existsSync(bridgePath)) {
+      return new Response("-- bridge.lua introuvable", { status: 404 });
+    }
+    const code = readFileSync(bridgePath, "utf-8");
+    return new Response(code, {
+      headers: { "Content-Type": "text/plain; charset=utf-8", ...CORS },
+    });
+  }
+
+  // Register
+  if (path === "/api/register" && method === "POST") {
+    try {
+      const body = await req.json();
+      const client: RobloxClient = {
+        clientId: body.clientId || genId(),
+        playerName: body.playerName || "Unknown",
+        userId: body.userId || 0,
+        placeId: body.placeId || 0,
+        jobId: body.jobId || "",
+        transport: body.transport || "HTTP Polling",
+        executor: body.executor || "Unknown",
+        connectedAt: Date.now(),
+        lastHeartbeat: Date.now(),
+        supports: body.supports,
+      };
+      clients.set(client.clientId, client);
+      commandQueues.set(client.clientId, []);
+      results.set(client.clientId, []);
+      log("success", "bridge",
+        `Client connecté: ${client.playerName} (${client.clientId}) · ${client.transport} · ${client.executor}`
+      );
+      return jsonResponse({ ok: true, clientId: client.clientId });
+    } catch (e: any) {
+      log("error", "api", `register failed: ${e.message}`);
+      return jsonResponse({ ok: false, error: e.message }, 400);
+    }
+  }
+
+  if (path === "/api/poll" && method === "POST") {
+    try {
+      const body = await req.json();
+      const queue = commandQueues.get(body.clientId) || [];
+      const commands = queue.splice(0, queue.length);
+      if (commands.length > 0) {
+        log("info", "bridge", `${body.clientId} polled ${commands.length} command(s)`);
+      }
+      return jsonResponse({ ok: true, commands });
+    } catch (e: any) {
+      return jsonResponse({ ok: false, error: e.message }, 400);
+    }
+  }
+
+  if (path === "/api/result" && method === "POST") {
+    try {
+      const body = await req.json();
+      const result: CommandResult = {
+        commandId: body.commandId,
+        result: body.result,
+        receivedAt: Date.now(),
+      };
+      const list = results.get(body.clientId) || [];
+      list.push(result);
+      if (list.length > 50) list.shift();
+      results.set(body.clientId, list);
+      return jsonResponse({ ok: true });
+    } catch (e: any) {
+      return jsonResponse({ ok: false, error: e.message }, 400);
+    }
+  }
+
+  if (path === "/api/heartbeat" && method === "POST") {
+    try {
+      const body = await req.json();
+      const client = clients.get(body.clientId);
+      if (client) {
+        client.lastHeartbeat = Date.now();
+        if (body.httpMode) client.httpMode = body.httpMode;
+      }
+      return jsonResponse({ ok: true });
+    } catch {
+      return jsonResponse({ ok: false }, 400);
+    }
+  }
+
+  if (path === "/api/clients" && method === "GET") {
+    const now = Date.now();
+    const list = Array.from(clients.values()).map((c) => ({
+      ...c,
+      online: now - c.lastHeartbeat < 10000,
+      uptime: Math.floor((now - c.connectedAt) / 1000),
+    }));
+    return jsonResponse({ ok: true, clients: list });
+  }
+
+  if (path === "/api/logs" && method === "GET") {
+    const limit = parseInt(url.searchParams.get("limit") || "100");
+    return jsonResponse({ ok: true, logs: logs.slice(-limit) });
+  }
+
+  // ─── HTTP direct execute (sans MCP) ───
+  if (path === "/api/execute" && method === "POST") {
+    try {
+      const body = await req.json();
+      const target = body.clientId || getFirstClient();
+      if (!target) {
+        return jsonResponse({ ok: false, error: "Aucun client connecté" }, 400);
+      }
+      const r = await sendCommand(target, { type: "execute", code: body.code });
+      return jsonResponse({ ok: r.ok, result: r });
+    } catch (e: any) {
+      return jsonResponse({ ok: false, error: e.message }, 500);
+    }
+  }
+
+  // ─── HTTP direct: list_remotes ───
+  if (path === "/api/remotes" && method === "GET") {
+    const target = getFirstClient();
+    if (!target) return jsonResponse({ ok: false, error: "Aucun client" }, 400);
+    const r = await sendCommand(target, { type: "list_remotes", limit: 50 });
+    return jsonResponse(r);
+  }
+
+  // ─── HTTP direct: decompile ───
+  if (path === "/api/decompile" && method === "POST") {
+    try {
+      const body = await req.json();
+      const target = body.clientId || getFirstClient();
+      if (!target) return jsonResponse({ ok: false, error: "Aucun client" }, 400);
+      const r = await sendCommand(target, { type: "decompile", path: body.path });
+      return jsonResponse(r);
+    } catch (e: any) {
+      return jsonResponse({ ok: false, error: e.message }, 500);
+    }
+  }
+
+  // ─── HTTP direct: instances ───
+  if (path === "/api/instances" && method === "GET") {
+    const selector = url.searchParams.get("selector") || "game";
+    const target = getFirstClient();
+    if (!target) return jsonResponse({ ok: false, error: "Aucun client" }, 400);
+    const r = await sendCommand(target, { type: "get_instances", selector });
+    return jsonResponse(r);
+  }
+
+  // ─── MCP endpoint ───
+  if (path === "/mcp" && method === "POST") {
+    return await handleMCP(req);
+  }
+  if (path === "/mcp" && method === "GET") {
+    return handleMCPStream(req);
+  }
+
+  return new Response("Not found", { status: 404, headers: CORS });
+}
+
+// ─── MCP Protocol ───────────────────────────────────────────
 const MCP_SESSIONS = new Map<string, any>();
+
+const MCP_TOOLS = [
+  {
+    name: "execute_code",
+    description:
+      "Exécute du code Lua dans le client Roblox connecté. " +
+      "Variables exposées: game, workspace, Players, etc. " +
+      "Les print() et warn() sont capturés et retournés dans logs[].",
+    inputSchema: {
+      type: "object",
+      properties: {
+        code: { type: "string", description: "Code Lua à exécuter" },
+        clientId: { type: "string", description: "ID du client (optionnel)" },
+      },
+      required: ["code"],
+    },
+  },
+  {
+    name: "decompile_script",
+    description:
+      "Décompile un LocalScript ou ModuleScript par son path (ex: 'ReplicatedStorage.Modules.Shop'). " +
+      "Retourne le code source Lua. Nécessite un exécuteur avec decompile().",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "Chemin depuis game (ex: 'ReplicatedStorage.Modules.Shop')" },
+        clientId: { type: "string" },
+      },
+      required: ["path"],
+    },
+  },
+  {
+    name: "get_instances",
+    description:
+      "Liste des instances via sélecteur CSS-like. " +
+      "Ex: 'game.ReplicatedStorage.Remotes.*' retourne tous les enfants de Remotes. " +
+      "Ex: 'game.Players' retourne la liste des joueurs.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        selector: { type: "string", description: "Sélecteur (ex: 'game.ReplicatedStorage.Remotes.*')" },
+        clientId: { type: "string" },
+      },
+      required: ["selector"],
+    },
+  },
+  {
+    name: "spy_remotes",
+    description:
+      "Active ou désactive l'interception des RemoteEvents et RemoteFunctions. " +
+      "Hook __namecall pour capturer FireServer / InvokeServer. " +
+      "Optionnel: filtre par nom (ex: 'Buy' capture seulement les remotes contenant 'Buy').",
+    inputSchema: {
+      type: "object",
+      properties: {
+        enabled: { type: "boolean", description: "true = activer, false = désactiver" },
+        filter: { type: "string", description: "Filtre par nom (optionnel)" },
+        clientId: { type: "string" },
+      },
+      required: ["enabled"],
+    },
+  },
+  {
+    name: "list_remotes",
+    description:
+      "Retourne le résumé des RemoteEvents interceptés (compte par nom) + les derniers events récents. " +
+      "Nécessite que spy_remotes ait été activé avant.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        limit: { type: "number", description: "Nombre max d'events récents (défaut: 50)" },
+        clientId: { type: "string" },
+      },
+    },
+  },
+  {
+    name: "click_gui",
+    description:
+      "Clique sur un TextButton / ImageButton in-game par son path. " +
+      "Utilise firesignal/firebuttonclick si disponible sur l'exécuteur.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "Chemin du bouton (ex: 'StarterGui.ScreenGui.Frame.BuyButton')" },
+        clientId: { type: "string" },
+      },
+      required: ["path"],
+    },
+  },
+  {
+    name: "screenshot",
+    description:
+      "Capture l'écran Roblox. Attention: nécessite ScreenshotWorkspace() sur l'exécuteur (rare sur mobile). " +
+      "Préfère get_instances + decompile_script pour inspecter le GUI sans capture.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        clientId: { type: "string" },
+      },
+    },
+  },
+  {
+    name: "get_player_info",
+    description:
+      "Retourne les infos d'un joueur (health, position, walkspeed, team, etc). " +
+      "Si playerName omis, retourne les infos du joueur local.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        playerName: { type: "string", description: "Nom du joueur (optionnel, défaut = local player)" },
+        clientId: { type: "string" },
+      },
+    },
+  },
+  {
+    name: "list_clients",
+    description: "Liste les clients Roblox actuellement connectés au serveur PocketMCP.",
+    inputSchema: {
+      type: "object",
+      properties: {},
+    },
+  },
+  {
+    name: "get_logs",
+    description: "Récupère les logs récents du serveur (bridge + exec + stdout).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        limit: { type: "number", description: "Nombre max de logs (défaut: 50)" },
+      },
+    },
+  },
+];
 
 async function handleMCP(req: Request): Promise<Response> {
   try {
     const body = await req.json();
     const { jsonrpc, id, method, params } = body;
     const sessionId = req.headers.get("MCP-Session-Id") || genId();
-
     let result: any = null;
 
     if (method === "initialize") {
       MCP_SESSIONS.set(sessionId, { initialized: true, createdAt: Date.now() });
       result = {
         protocolVersion: "2024-11-05",
-        capabilities: {
-          tools: {},
-          resources: {},
-        },
-        serverInfo: {
-          name: "pocketmcp",
-          version: "0.1.0",
-        },
+        capabilities: { tools: {}, resources: {} },
+        serverInfo: { name: "pocketmcp", version: "0.2.0" },
       };
       log("info", "mcp", `Session initialized: ${sessionId}`);
     } else if (method === "notifications/initialized") {
-      // Just an ack
       return new Response(null, { status: 202, headers: CORS });
     } else if (method === "tools/list") {
-      result = {
-        tools: [
-          {
-            name: "execute_code",
-            description:
-              "Exécute du code Lua dans le client Roblox connecté. " +
-              "Variables exposées: game, workspace, Players, etc. " +
-              "Les print() et warn() sont capturés et retournés dans logs[].",
-            inputSchema: {
-              type: "object",
-              properties: {
-                code: {
-                  type: "string",
-                  description: "Code Lua à exécuter",
-                },
-                clientId: {
-                  type: "string",
-                  description: "ID du client (optionnel, utilise le 1er si omis)",
-                },
-              },
-              required: ["code"],
-            },
-          },
-          {
-            name: "list_clients",
-            description: "Liste les clients Roblox actuellement connectés",
-            inputSchema: {
-              type: "object",
-              properties: {},
-            },
-          },
-          {
-            name: "get_logs",
-            description: "Récupère les logs récents du serveur",
-            inputSchema: {
-              type: "object",
-              properties: {
-                limit: {
-                  type: "number",
-                  description: "Nombre max de logs (défaut: 50)",
-                },
-              },
-            },
-          },
-        ],
-      };
+      result = { tools: MCP_TOOLS };
     } else if (method === "tools/call") {
       const toolName = params?.name;
       const args = params?.arguments || {};
+      const clientId = args.clientId || getFirstClient();
 
-      if (toolName === "execute_code") {
-        const target = args.clientId || getFirstClient();
-        if (!target) {
-          result = {
-            content: [
-              {
-                type: "text",
-                text: "Erreur: Aucun client Roblox connecté. Démarre le bridge dans ton exécuteur mobile d'abord.",
-              },
-            ],
-            isError: true,
-          };
-        } else {
-          const cmd: Command = {
-            id: genId(),
-            type: "execute",
-            code: args.code,
-            createdAt: Date.now(),
-          };
-          const queue = commandQueues.get(target) || [];
-          queue.push(cmd);
-          commandQueues.set(target, queue);
-          log("info", "mcp", `execute_code on ${target} (${cmd.id})`);
-
-          const resultData = await waitForResult(target, cmd.id, 30000);
-          if (resultData) {
-            const r = resultData.result;
-            const text = formatResult(r);
-            result = {
-              content: [{ type: "text", text }],
-              isError: !r.ok,
-            };
-          } else {
-            result = {
-              content: [
-                {
-                  type: "text",
-                  text: "Timeout: le client n'a pas répondu en 30s. Vérifie qu'il est toujours connecté.",
-                },
-              ],
-              isError: true,
-            };
-          }
-        }
-      } else if (toolName === "list_clients") {
-        const now = Date.now();
-        const list = Array.from(clients.values())
-          .filter((c) => now - c.lastHeartbeat < 5000)
-          .map((c) => ({
-            clientId: c.clientId,
-            playerName: c.playerName,
-            placeId: c.placeId,
-            transport: c.transport,
-            connectedAt: new Date(c.connectedAt).toISOString(),
-          }));
+      if (!clientId && !["list_clients", "get_logs"].includes(toolName)) {
         result = {
-          content: [
-            {
+          content: [{
+            type: "text",
+            text: "Erreur: Aucun client Roblox connecté. Démarre le bridge dans ton exécuteur mobile d'abord.",
+          }],
+          isError: true,
+        };
+      } else {
+        let cmd: Omit<Command, "id" | "createdAt"> | null = null;
+        let needsClient = true;
+
+        if (toolName === "execute_code") {
+          cmd = { type: "execute", code: args.code };
+        } else if (toolName === "decompile_script") {
+          cmd = { type: "decompile", path: args.path };
+        } else if (toolName === "get_instances") {
+          cmd = { type: "get_instances", selector: args.selector };
+        } else if (toolName === "spy_remotes") {
+          cmd = { type: "spy_remotes", enabled: args.enabled, filter: args.filter };
+        } else if (toolName === "list_remotes") {
+          cmd = { type: "list_remotes", limit: args.limit || 50 };
+        } else if (toolName === "click_gui") {
+          cmd = { type: "click_gui", path: args.path };
+        } else if (toolName === "screenshot") {
+          cmd = { type: "screenshot" };
+        } else if (toolName === "get_player_info") {
+          cmd = { type: "get_player_info", playerName: args.playerName };
+        } else if (toolName === "list_clients") {
+          const now = Date.now();
+          const list = Array.from(clients.values())
+            .filter((c) => now - c.lastHeartbeat < 10000)
+            .map((c) => ({
+              clientId: c.clientId,
+              playerName: c.playerName,
+              executor: c.executor,
+              placeId: c.placeId,
+              transport: c.transport,
+              httpMode: c.httpMode,
+              supports: c.supports,
+              uptime: Math.floor((now - c.connectedAt) / 1000),
+            }));
+          result = {
+            content: [{
               type: "text",
               text: list.length === 0
                 ? "Aucun client connecté."
                 : `${list.length} client(s) connecté(s):\n${JSON.stringify(list, null, 2)}`,
-            },
-          ],
-        };
-      } else if (toolName === "get_logs") {
-        const limit = args.limit || 50;
-        const recent = logs.slice(-limit);
-        result = {
-          content: [
-            {
+            }],
+          };
+          needsClient = false;
+        } else if (toolName === "get_logs") {
+          const limit = args.limit || 50;
+          const recent = logs.slice(-limit);
+          result = {
+            content: [{
               type: "text",
               text: recent
                 .map((l) => `[${l.time}] [${l.level}] [${l.source}] ${l.message}`)
                 .join("\n"),
-            },
-          ],
-        };
-      } else {
-        result = {
-          content: [{ type: "text", text: `Outil inconnu: ${toolName}` }],
-          isError: true,
-        };
+            }],
+          };
+          needsClient = false;
+        } else {
+          result = {
+            content: [{ type: "text", text: `Outil inconnu: ${toolName}` }],
+            isError: true,
+          };
+          needsClient = false;
+        }
+
+        if (needsClient && cmd) {
+          const r = await sendCommand(clientId, cmd, 30000);
+          result = {
+            content: [{ type: "text", text: formatResult(r, toolName) }],
+            isError: !r.ok,
+          };
+        }
       }
     } else {
-      return jsonResponse(
-        {
-          jsonrpc: "2.0",
-          id,
-          error: { code: -32601, message: `Method not found: ${method}` },
-        },
-        400
-      );
+      return jsonResponse({
+        jsonrpc: "2.0", id,
+        error: { code: -32601, message: `Method not found: ${method}` },
+      }, 400);
     }
 
     return new Response(
@@ -492,14 +593,10 @@ async function handleMCP(req: Request): Promise<Response> {
     );
   } catch (e: any) {
     log("error", "mcp", `MCP error: ${e.message}`);
-    return jsonResponse(
-      {
-        jsonrpc: "2.0",
-        id: null,
-        error: { code: -32603, message: e.message },
-      },
-      500
-    );
+    return jsonResponse({
+      jsonrpc: "2.0", id: null,
+      error: { code: -32603, message: e.message },
+    }, 500);
   }
 }
 
@@ -510,7 +607,6 @@ function handleMCPStream(req: Request): Response {
       const interval = setInterval(() => {
         controller.enqueue(": ping\n\n");
       }, 30000);
-      // Keep open
       req.signal?.addEventListener("abort", () => {
         clearInterval(interval);
         controller.close();
@@ -527,19 +623,44 @@ function handleMCPStream(req: Request): Response {
   });
 }
 
-function formatResult(r: any): string {
+function formatResult(r: any, toolName: string): string {
   if (!r) return "Pas de résultat";
-  let text = "";
-  if (r.logs && r.logs.length > 0) {
-    text += "── logs ──────────────\n";
-    text += r.logs.join("\n");
-    text += "\n";
+  if (toolName === "execute_code") {
+    let text = "";
+    if (r.logs && r.logs.length > 0) {
+      text += "── logs ──────────────\n";
+      text += r.logs.join("\n");
+      text += "\n";
+    }
+    text += "── résultat ──────────\n";
+    text += `ok: ${r.ok}\n`;
+    if (r.result) text += `result: ${r.result}\n`;
+    if (r.error) text += `error: ${r.error}\n`;
+    return text;
   }
-  text += "── résultat ──────────\n";
-  text += `ok: ${r.ok}\n`;
-  if (r.result) text += `result: ${r.result}\n`;
-  if (r.error) text += `error: ${r.error}\n`;
-  return text;
+  if (toolName === "decompile_script") {
+    if (!r.ok) return `Erreur: ${r.error}`;
+    return `── source (${r.lines} lignes) ──\n${r.source}`;
+  }
+  if (toolName === "get_instances") {
+    if (!r.ok) return `Erreur: ${r.error}`;
+    return `${r.count} instance(s):\n${JSON.stringify(r.instances, null, 2)}`;
+  }
+  if (toolName === "list_remotes") {
+    if (!r.ok) return `Erreur: ${r.error}`;
+    let text = `── summary (${r.totalUnique} unique, ${r.totalFires} total) ──\n`;
+    text += r.summary.map((s: any) => `  ${s.name}: ${s.count}x`).join("\n");
+    text += `\n\n── recent events ──\n`;
+    text += r.recent.map((e: any) =>
+      `  [${new Date(e.time * 1000).toLocaleTimeString()}] ${e.kind} ${e.name} (${e.argsCount} args)`
+    ).join("\n");
+    return text;
+  }
+  if (toolName === "get_player_info") {
+    if (!r.ok) return `Erreur: ${r.error}`;
+    return JSON.stringify(r.info, null, 2);
+  }
+  return JSON.stringify(r, null, 2);
 }
 
 // ─── Dashboard HTML ─────────────────────────────────────────
@@ -554,46 +675,52 @@ function renderDashboard(): string {
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     font-family: 'JetBrains Mono', 'Menlo', monospace;
-    background: #0a0d12;
-    color: #c9d1d9;
-    padding: 16px;
-    min-height: 100vh;
+    background: #0a0d12; color: #c9d1d9;
+    padding: 16px; min-height: 100vh;
   }
   .header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-bottom: 12px;
-    border-bottom: 1px solid #21262d;
-    margin-bottom: 16px;
+    display: flex; justify-content: space-between; align-items: center;
+    padding-bottom: 12px; border-bottom: 1px solid #21262d; margin-bottom: 16px;
   }
   .logo { color: #4ade80; font-weight: bold; font-size: 14px; }
   .status { font-size: 11px; color: #8b949e; }
   .status .dot {
     display: inline-block; width: 8px; height: 8px;
     border-radius: 50%; background: #4ade80;
-    margin-right: 6px;
-    animation: pulse 2s infinite;
+    margin-right: 6px; animation: pulse 2s infinite;
   }
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+  .tabs {
+    display: flex; gap: 2px; border-bottom: 1px solid #21262d; margin-bottom: 12px;
   }
-  .section { margin-bottom: 20px; }
+  .tab {
+    padding: 8px 12px; background: none; border: none; color: #8b949e;
+    font-family: inherit; font-size: 11px; cursor: pointer; border-bottom: 2px solid transparent;
+  }
+  .tab.active { color: #4ade80; border-bottom-color: #4ade80; }
+  .tab:hover { color: #c9d1d9; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .section { margin-bottom: 16px; }
   .section h2 {
     color: #4ade80; font-size: 12px; text-transform: uppercase;
-    letter-spacing: 0.1em; margin-bottom: 10px;
+    letter-spacing: 0.1em; margin-bottom: 8px;
   }
   .client {
     background: #161b22; border: 1px solid #21262d;
-    border-radius: 6px; padding: 12px; margin-bottom: 8px;
+    border-radius: 6px; padding: 10px; margin-bottom: 6px; font-size: 11px;
   }
-  .client-name { color: #c9d1d9; font-weight: bold; font-size: 13px; }
-  .client-info { color: #8b949e; font-size: 11px; margin-top: 4px; }
+  .client-name { color: #c9d1d9; font-weight: bold; font-size: 12px; }
+  .client-info { color: #8b949e; margin-top: 4px; }
+  .badge {
+    display: inline-block; padding: 1px 6px; border-radius: 3px;
+    font-size: 10px; margin-left: 6px;
+  }
+  .badge-online { background: #1a4731; color: #4ade80; }
+  .badge-http { background: #3b3220; color: #fbbf24; }
   .logs {
     background: #0d1117; border: 1px solid #21262d;
-    border-radius: 6px; padding: 12px;
-    height: 300px; overflow-y: auto;
+    border-radius: 6px; padding: 10px; height: 400px; overflow-y: auto;
     font-size: 11px; line-height: 1.6;
   }
   .log-line { white-space: pre-wrap; word-break: break-all; }
@@ -602,73 +729,130 @@ function renderDashboard(): string {
   .log-error { color: #f87171; }
   .log-success { color: #4ade80; }
   .empty { color: #6e7681; font-style: italic; }
-  .refresh-btn {
+  .btn {
     background: #21262d; color: #c9d1d9; border: 1px solid #30363d;
     padding: 6px 12px; border-radius: 4px; cursor: pointer;
-    font-family: inherit; font-size: 11px;
+    font-family: inherit; font-size: 11px; margin-right: 4px;
   }
-  .refresh-btn:hover { background: #30363d; }
-  a { color: #4ade80; text-decoration: none; }
+  .btn:hover { background: #30363d; }
+  .btn-primary { background: #1a4731; color: #4ade80; border-color: #2d5e44; }
+  .tools-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 6px;
+  }
+  .tool-card {
+    background: #161b22; border: 1px solid #21262d; border-radius: 6px;
+    padding: 8px; font-size: 11px;
+  }
+  .tool-name { color: #4ade80; font-weight: bold; }
+  .tool-desc { color: #8b949e; margin-top: 4px; font-size: 10px; }
+  code { color: #4ade80; background: #161b22; padding: 2px 6px; border-radius: 3px; }
 </style>
 </head>
 <body>
   <div class="header">
     <div>
-      <div class="logo">pocket<span style="color:#c9d1d9">mcp</span></div>
-      <div class="status"><span class="dot"></span>serveur actif · :${PORT}</div>
+      <div class="logo">pocket<span style="color:#c9d1d9">mcp</span> <span style="color:#8b949e">v0.2.0</span></div>
+      <div class="status"><span class="dot"></span>serveur actif · :${PORT} · <span id="uptime">0s</span></div>
     </div>
-    <button class="refresh-btn" onclick="location.reload()">↻ refresh</button>
+    <button class="btn" onclick="location.reload()">↻ refresh</button>
   </div>
 
-  <div class="section">
-    <h2>bridge script</h2>
-    <div style="background:#161b22; padding:10px; border-radius:6px; font-size:11px; color:#8b949e;">
-      colle ça dans ton exécuteur Roblox :<br>
-      <code style="color:#4ade80">loadstring(game:HttpGet("http://localhost:${PORT}/script.luau"))()</code>
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('clients', this)">clients</button>
+    <button class="tab" onclick="showTab('logs', this)">logs</button>
+    <button class="tab" onclick="showTab('tools', this)">outils MCP</button>
+    <button class="tab" onclick="showTab('bridge', this)">bridge script</button>
+  </div>
+
+  <div id="panel-clients" class="panel active">
+    <div class="section">
+      <h2>clients connectés (<span id="client-count">0</span>)</h2>
+      <div id="clients-list"></div>
     </div>
   </div>
 
-  <div class="section">
-    <h2>clients connectés (<span id="client-count">0</span>)</h2>
-    <div id="clients-list"></div>
+  <div id="panel-logs" class="panel">
+    <div class="section">
+      <h2>logs live (auto-refresh 2s)</h2>
+      <div class="logs" id="logs"></div>
+    </div>
   </div>
 
-  <div class="section">
-    <h2>logs live</h2>
-    <div class="logs" id="logs"></div>
+  <div id="panel-tools" class="panel">
+    <div class="section">
+      <h2>outils MCP exposés (${MCP_TOOLS.length})</h2>
+      <div class="tools-grid" id="tools-list"></div>
+    </div>
+  </div>
+
+  <div id="panel-bridge" class="panel">
+    <div class="section">
+      <h2>bridge script</h2>
+      <div style="background:#161b22; padding:10px; border-radius:6px; font-size:11px; color:#8b949e;">
+        colle ça dans ton exécuteur Roblox :<br>
+        <code>loadstring(game:HttpGet("http://localhost:${PORT}/script.luau"))()</code>
+      </div>
+      <br>
+      <a class="btn btn-primary" href="/script.luau" target="_blank">voir le script complet</a>
+    </div>
   </div>
 
 <script>
+function showTab(name, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+const TOOLS = ${JSON.stringify(MCP_TOOLS.map(t => ({ name: t.name, desc: t.description.slice(0, 100) })))};
+
+function renderTools() {
+  const el = document.getElementById('tools-list');
+  el.innerHTML = TOOLS.map(t => \`
+    <div class="tool-card">
+      <div class="tool-name">\${t.name}()</div>
+      <div class="tool-desc">\${t.desc}</div>
+    </div>
+  \`).join('');
+}
+renderTools();
+
 async function refresh() {
   try {
     const [clientsRes, logsRes] = await Promise.all([
-      fetch('/api/clients'),
-      fetch('/api/logs')
+      fetch('/api/clients'), fetch('/api/logs?limit=100')
     ]);
     const clientsData = await clientsRes.json();
     const logsData = await logsRes.json();
 
     const clientsEl = document.getElementById('clients-list');
     const countEl = document.getElementById('client-count');
-    const onlineClients = (clientsData.clients || []).filter(c => c.online);
-    countEl.textContent = onlineClients.length;
+    const online = (clientsData.clients || []).filter(c => c.online);
+    countEl.textContent = online.length;
 
-    if (onlineClients.length === 0) {
+    if (online.length === 0) {
       clientsEl.innerHTML = '<div class="empty">aucun client connecté. lance le bridge dans roblox.</div>';
     } else {
-      clientsEl.innerHTML = onlineClients.map(c => \`
+      clientsEl.innerHTML = online.map(c => \`
         <div class="client">
-          <div class="client-name">\${c.playerName} <span style="color:#4ade80">●</span></div>
+          <div class="client-name">\${c.playerName}
+            <span class="badge badge-online">●</span>
+            <span class="badge badge-http">\${c.httpMode || 'request'}</span>
+          </div>
           <div class="client-info">
-            clientId: \${c.clientId} · placeId: \${c.placeId} · transport: \${c.transport}<br>
-            connecté: \${new Date(c.connectedAt).toLocaleTimeString('fr-FR')}
+            clientId: \${c.clientId}<br>
+            executor: \${c.executor} · transport: \${c.transport}<br>
+            uptime: \${c.uptime}s · placeId: \${c.placeId}<br>
+            supports: decompile=\${c.supports?.decompile || false}, drawing=\${c.supports?.drawing || false}, files=\${c.supports?.writefile || false}
           </div>
         </div>
       \`).join('');
     }
 
     const logsEl = document.getElementById('logs');
-    const recent = (logsData.logs || []).slice(-50);
+    const recent = (logsData.logs || []).slice(-80);
     if (recent.length === 0) {
       logsEl.innerHTML = '<div class="empty">aucun log. connecte un client et exécute du code.</div>';
     } else {
@@ -677,9 +861,9 @@ async function refresh() {
       ).join('');
       logsEl.scrollTop = logsEl.scrollHeight;
     }
-  } catch (e) {
-    console.error(e);
-  }
+
+    document.getElementById('uptime').textContent = Math.floor(performance.now() / 1000) + 's';
+  } catch (e) { console.error(e); }
 }
 refresh();
 setInterval(refresh, 2000);
@@ -688,28 +872,26 @@ setInterval(refresh, 2000);
 </html>`;
 }
 
-// ─── Démarrage du serveur ───────────────────────────────────
+// ─── Démarrage ──────────────────────────────────────────────
 const server = Bun.serve({
-  port: PORT,
-  hostname: HOST,
-  fetch: handleRequest,
+  port: PORT, hostname: HOST, fetch: handleRequest,
 });
 
-log("success", "server", `pocketmcp démarré sur http://${HOST}:${PORT}`);
+log("success", "server", `pocketmcp v0.2.0 démarré sur http://${HOST}:${PORT}`);
 log("info", "server", `Dashboard: http://localhost:${PORT}/`);
 log("info", "server", `Bridge Lua: http://localhost:${PORT}/script.luau`);
-log("info", "server", `MCP endpoint: http://localhost:${PORT}/mcp`);
+log("info", "server", `MCP endpoint: http://localhost:${PORT}/mcp (${MCP_TOOLS.length} tools)`);
 log("info", "server", `Health: http://localhost:${PORT}/health`);
 console.log("─────────────────────────────────────────────");
 console.log("  bridge à coller dans roblox :");
 console.log('  loadstring(game:HttpGet("http://localhost:' + PORT + '/script.luau"))()');
 console.log("─────────────────────────────────────────────");
 
-// Nettoyage des clients morts toutes les 10s
+// Nettoyage clients morts
 setInterval(() => {
   const now = Date.now();
   for (const [id, c] of clients) {
-    if (now - c.lastHeartbeat > 10000) {
+    if (now - c.lastHeartbeat > 15000) {
       log("warn", "bridge", `Client timed out: ${c.playerName} (${id})`);
       clients.delete(id);
       commandQueues.delete(id);
@@ -718,9 +900,8 @@ setInterval(() => {
   }
 }, 10000);
 
-// Garde le process vivant
 process.on("SIGINT", () => {
-  log("info", "server", "Arrêt en cours...");
+  log("info", "server", "Arrêt...");
   server.stop();
   process.exit(0);
 });
