@@ -287,7 +287,7 @@ function IntroSection() {
       <H2>ce que ça ne fait pas</H2>
       <Callout type="warn" title="limites honnêtes">
         - pocketmcp ne contourne pas l'anti-cheat de roblox. c'est à vous de coder vos scripts en conséquence.<br/>
-        - screenshot ne marche pas sur mobile (pas d'api screenshotworkspace).<br/>
+        - screenshot ne marche pas sur mobile (pas d'api screenshotworkspace). le serveur répond automatiquement avec des alternatives (get_instances, decompile_script) au lieu de timeout.<br/>
         - websocket ne fonctionne pas sur mobile (bascule auto en http polling 100ms).<br/>
         - le serveur n'a pas d'authentification. ne l'exposez pas sur internet.
       </Callout>
@@ -834,6 +834,44 @@ end`,
         votre code dans un fichier, puis <Code>loadfile()</Code> pour l'exécuter. ça évite de
         renvoyer tout le code à chaque test.
       </Callout>
+
+      <H2>screenshot : pc only</H2>
+      <P>
+        l'outil <Code>screenshot</Code> utilise <Code>ScreenshotWorkspace()</Code> de l'exécuteur.
+        cette fonctionnalité n'existe que sur les exécuteurs pc (synapse x, script-ware).
+        sur mobile (delta, hydrogen, krnl mobile), elle n'est pas disponible.
+      </P>
+      <Callout type="info" title="comportement intelligent">
+        le serveur vérifie <Code>supports.screenshot</Code> du client avant d'envoyer la commande.
+        si non supporté, il répond instantanément à l'ia avec un message + alternatives,
+        au lieu d'attendre un timeout de 30s.
+      </Callout>
+      <P>réponse typique sur mobile :</P>
+      <CodeBlock lang="text" code={`screenshot non disponible sur ce client (Delta ne supporte pas ScreenshotWorkspace).
+
+alternatives possibles :
+- get_instances avec selector "game.StarterGui.*" pour inspecter le GUI
+- decompile_script pour lire le code source des scripts
+- execute_code avec un script qui retourne les propriétés des éléments visuels
+
+note : screenshot fonctionne sur pc (synapse, script-ware) avec ScreenshotWorkspace().`} />
+
+      <H3>alternative : inspecter le gui sans screenshot</H3>
+      <P>
+        si vous voulez "voir" l'interface roblox sans capture d'écran, utilisez :
+      </P>
+      <CodeBlock lang="lua" code={`-- lister tous les elements gui visibles
+local sg = game:GetService("StarterGui")
+for _, gui in ipairs(sg:GetChildren()) do
+  print("── " .. gui.Name .. " ──")
+  for _, el in ipairs(gui:GetDescendants()) do
+    if el:IsA("TextLabel") or el:IsA("TextButton") or el:IsA("ImageButton") then
+      print("  " .. el.ClassName .. ": " .. el.Name)
+      if el.Text then print("    text: " .. el.Text) end
+      if el.Visible ~= nil then print("    visible: " .. tostring(el.Visible)) end
+    end
+  end
+end`} />
     </div>
   );
 }

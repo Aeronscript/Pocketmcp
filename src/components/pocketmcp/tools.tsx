@@ -45,9 +45,9 @@ const TOOLS = [
   },
   {
     name: "screenshot",
-    desc: "capture l'écran (si screenshotworkspace dispo)",
+    desc: "capture l'écran roblox (pc only : synapse, script-ware). sur mobile, répond avec alternatives",
     args: "{}",
-    returns: "base64 | path",
+    returns: "base64 | path | alternatives",
     icon: "▣",
   },
   {

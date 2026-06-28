@@ -429,8 +429,10 @@ const MCP_TOOLS = [
   {
     name: "screenshot",
     description:
-      "Capture l'écran Roblox. Attention: nécessite ScreenshotWorkspace() sur l'exécuteur (rare sur mobile). " +
-      "Préfère get_instances + decompile_script pour inspecter le GUI sans capture.",
+      "Capture l'écran Roblox via ScreenshotWorkspace(). PC-only (synapse, script-ware). " +
+      "Sur mobile (delta, hydrogen), retourne automatiquement un message avec alternatives " +
+      "(get_instances, decompile_script, execute_code). " +
+      "Le serveur vérifie supports.screenshot du client avant d'envoyer la commande.",
     inputSchema: {
       type: "object",
       properties: {
@@ -520,7 +522,24 @@ async function handleMCP(req: Request): Promise<Response> {
         } else if (toolName === "click_gui") {
           cmd = { type: "click_gui", path: args.path };
         } else if (toolName === "screenshot") {
-          cmd = { type: "screenshot" };
+          // Vérifie si le client supporte screenshot avant d'envoyer
+          const client = clients.get(clientId);
+          if (client && client.supports && !client.supports.screenshot) {
+            result = {
+              content: [{
+                type: "text",
+                text: `screenshot non disponible sur ce client (${client.executor} ne supporte pas ScreenshotWorkspace).\n\n` +
+                      `alternatives possibles :\n` +
+                      `- get_instances avec selector \"game.StarterGui.*\" pour inspecter le GUI\n` +
+                      `- decompile_script pour lire le code source des scripts\n` +
+                      `- execute_code avec un script qui retourne les propriétés des éléments visuels\n\n` +
+                      `note : screenshot fonctionne sur pc (synapse, script-ware) avec ScreenshotWorkspace().`,
+              }],
+              isError: false, // pas une erreur, juste une limite
+            };
+          } else {
+            cmd = { type: "screenshot" };
+          }
         } else if (toolName === "get_player_info") {
           cmd = { type: "get_player_info", playerName: args.playerName };
         } else if (toolName === "list_clients") {
