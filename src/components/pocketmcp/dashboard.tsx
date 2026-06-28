@@ -2,11 +2,13 @@
 
 import { useState, useEffect, useRef } from "react";
 import { connectedClients, liveLogs, remoteEvents, instanceTree, type LogEntry } from "@/lib/data";
+import { LiveTerminal } from "./live-terminal";
 
-type Tab = "clients" | "console" | "execute" | "spy" | "tree";
+type Tab = "clients" | "terminal" | "console" | "execute" | "spy" | "tree";
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: "clients", label: "clients", icon: "▣" },
+  { id: "terminal", label: "terminal", icon: "▶" },
   { id: "console", label: "console", icon: "≡" },
   { id: "execute", label: "execute", icon: "▶" },
   { id: "spy", label: "remote spy", icon: "◈" },
@@ -102,8 +104,9 @@ export function Dashboard() {
           </div>
 
           {/* Content */}
-          <div className="min-h-[360px] sm:min-h-[420px] max-h-[520px] overflow-auto p-3 sm:p-5">
+          <div className={`min-h-[360px] sm:min-h-[420px] max-h-[520px] overflow-auto p-3 sm:p-5 ${tab === "terminal" ? "!p-0 !max-h-none !overflow-visible" : ""}`}>
             {tab === "clients" && <ClientsTab />}
+            {tab === "terminal" && <LiveTerminal />}
             {tab === "console" && <ConsoleTab logs={logs} ref={consoleRef} />}
             {tab === "execute" && <ExecuteTab />}
             {tab === "spy" && <SpyTab />}
