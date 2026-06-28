@@ -198,13 +198,50 @@ export function DocsPage({ onBack }: Props) {
 /* ─────────────────────── SECTIONS ─────────────────────── */
 
 function CodeBlock({ code, lang = "bash" }: { code: string; lang?: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const copy = () => {
+    navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Pour le bash/json : on garde whitespace-pre + scroll-x (commandes longues)
+  // Pour le lua/text : on wrap (lisibilité, pas de scroll horizontal)
+  const isWrap = lang === "lua" || lang === "text" || lang === "ascii";
+
   return (
     <div className="rounded-lg border border-border/40 bg-[#0d1117] overflow-hidden my-3">
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-border/40 bg-secondary/30">
         <span className="text-[10px] font-mono text-foreground/50 uppercase tracking-wider">{lang}</span>
+        <button
+          onClick={copy}
+          className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-mono transition-all ${
+            copied
+              ? "bg-primary/20 text-primary"
+              : "text-foreground/60 hover:text-foreground hover:bg-secondary/60"
+          }`}
+        >
+          {copied ? (
+            <>
+              <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              copié
+            </>
+          ) : (
+            <>
+              <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+              </svg>
+              copier
+            </>
+          )}
+        </button>
       </div>
-      <pre className="p-3 sm:p-4 text-[11px] sm:text-[12px] leading-[1.65] font-mono overflow-x-auto">
-        <code className="text-[#c9d1d9] whitespace-pre">{code}</code>
+      <pre className={`p-3 sm:p-4 text-[11px] sm:text-[12px] leading-[1.65] font-mono ${isWrap ? "overflow-x-hidden" : "overflow-x-auto"}`}>
+        <code className={`text-[#c9d1d9] ${isWrap ? "whitespace-pre-wrap break-words" : "whitespace-pre"}`}>{code}</code>
       </pre>
     </div>
   );
@@ -819,7 +856,7 @@ end`,
         dédiés plutôt que execute_code.
       </P>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="space-y-3">
         {examples.map((ex, i) => (
           <div key={i} className="rounded-lg border border-border/40 bg-card p-3.5">
             <h3 className="text-[13px] font-mono font-semibold text-foreground mb-1">{ex.title}</h3>
@@ -1032,7 +1069,7 @@ et disparaîtront du dashboard automatiquement.`,
             </button>
             {open === i && (
               <div className="px-3 sm:px-3.5 pb-3 sm:pb-3.5">
-                <CodeBlock lang="bash" code={issue.a} />
+                <CodeBlock lang="text" code={issue.a} />
               </div>
             )}
           </div>
