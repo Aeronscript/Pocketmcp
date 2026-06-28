@@ -22,6 +22,18 @@ export const metadata: Metadata = {
     "mobile", "Android", "Lua", "executor",
   ],
   authors: [{ name: "Aeronscript" }],
+  icons: {
+    icon: [
+      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-64.png", sizes: "64x64", type: "image/png" },
+    ],
+    apple: "/favicon-64.png",
+  },
+  openGraph: {
+    title: "PocketMCP — Roblox MCP mobile-first",
+    description: "Serveur MCP Roblox pour mobile. Branche ton tél sur OpenCode, Codex, Claude.",
+    images: ["/pocketmcp-logo-optimized.png"],
+  },
 };
 
 export default function RootLayout({

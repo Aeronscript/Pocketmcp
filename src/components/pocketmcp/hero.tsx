@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 export function Hero() {
   return (
     <section id="top" className="relative overflow-hidden pt-8 pb-12 sm:pt-20 sm:pb-24">
@@ -9,6 +11,20 @@ export function Hero() {
 
       <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl text-center">
+          {/* Logo */}
+          <div className="flex justify-center mb-6 sm:mb-8">
+            <div className="relative h-16 w-16 sm:h-20 sm:w-20">
+              <Image
+                src="/pocketmcp-logo-optimized.png"
+                alt="pocketmcp"
+                width={80}
+                height={80}
+                className="h-full w-full object-contain drop-shadow-[0_0_20px_rgba(74,222,128,0.4)]"
+                priority
+              />
+            </div>
+          </div>
+
           {/* Live badge */}
           <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-secondary/40 px-2.5 sm:px-3 py-1 text-[10px] sm:text-[11px] text-muted-foreground backdrop-blur-sm mb-5 sm:mb-7 font-mono">
             <span className="relative flex h-1.5 w-1.5">

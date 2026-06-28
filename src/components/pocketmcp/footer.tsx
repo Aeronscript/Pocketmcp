@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 export function Footer() {
   return (
     <footer className="mt-auto border-t border-border/40 bg-secondary/10">
@@ -8,11 +10,14 @@ export function Footer() {
           {/* Brand */}
           <div className="md:col-span-6">
             <div className="flex items-center gap-2.5">
-              <div className="relative h-8 w-8 rounded-lg bg-primary/10 ring-1 ring-primary/30 flex items-center justify-center">
-                <svg viewBox="0 0 24 24" className="h-4 w-4 text-primary" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="5" y="2" width="14" height="20" rx="2" />
-                  <line x1="12" y1="18" x2="12" y2="18" />
-                </svg>
+              <div className="relative h-9 w-9 shrink-0">
+                <Image
+                  src="/pocketmcp-logo-optimized.png"
+                  alt="pocketmcp"
+                  width={36}
+                  height={36}
+                  className="h-full w-auto object-contain"
+                />
               </div>
               <div className="flex flex-col leading-none">
                 <span className="text-[14px] font-semibold tracking-tight font-mono">

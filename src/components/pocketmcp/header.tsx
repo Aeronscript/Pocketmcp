@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 
 export function Header() {
   const [scrolled, setScrolled] = useState(false);
@@ -23,12 +24,16 @@ export function Header() {
         <div className="flex h-14 sm:h-16 items-center justify-between gap-2 sm:gap-4">
           {/* Logo */}
           <a href="#top" className="flex items-center gap-2 sm:gap-2.5 group shrink-0">
-            <div className="relative h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-primary/10 ring-1 ring-primary/30 flex items-center justify-center">
-              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="5" y="2" width="14" height="20" rx="2" />
-                <line x1="12" y1="18" x2="12" y2="18" />
-              </svg>
-              <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-primary pulse-green" />
+            <div className="relative h-8 w-8 sm:h-9 sm:w-9 shrink-0">
+              <Image
+                src="/pocketmcp-logo-optimized.png"
+                alt="pocketmcp"
+                width={36}
+                height={36}
+                className="h-full w-auto object-contain group-hover:scale-105 transition-transform"
+                priority
+              />
+              <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-primary pulse-green" />
             </div>
             <div className="flex flex-col leading-none">
               <span className="text-[13px] sm:text-[14px] font-semibold tracking-tight font-mono">
