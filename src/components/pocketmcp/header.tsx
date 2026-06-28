@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Image from "next/image";
 
 export function Header() {
   const [scrolled, setScrolled] = useState(false);
@@ -22,19 +21,8 @@ export function Header() {
     >
       <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8">
         <div className="flex h-14 sm:h-16 items-center justify-between gap-2 sm:gap-4">
-          {/* Logo */}
-          <a href="#top" className="flex items-center gap-2 sm:gap-2.5 group shrink-0">
-            <div className="relative h-8 w-8 sm:h-9 sm:w-9 shrink-0">
-              <Image
-                src="/pocketmcp-logo-optimized.png"
-                alt="pocketmcp"
-                width={36}
-                height={36}
-                className="h-full w-auto object-contain group-hover:scale-105 transition-transform"
-                priority
-              />
-              <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-primary pulse-green" />
-            </div>
+          {/* Logo textuel */}
+          <a href="#top" className="flex items-center gap-1.5 group shrink-0 -ml-1 sm:ml-0">
             <div className="flex flex-col leading-none">
               <span className="text-[13px] sm:text-[14px] font-semibold tracking-tight font-mono">
                 pocket<span className="text-primary">mcp</span>
@@ -43,6 +31,10 @@ export function Header() {
                 roblox · mobile
               </span>
             </div>
+            <span className="relative flex h-1.5 w-1.5 ml-1">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
+            </span>
           </a>
 
           {/* Desktop nav */}
