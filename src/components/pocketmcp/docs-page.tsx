@@ -431,6 +431,33 @@ function ArchitectureSection() {
         qui contourne l'exécuteur et tape directement l'api roblox. l'état du mode http est
         remonté au serveur via heartbeat : <Code>request</Code> / <Code>httpget</Code> / <Code>httpfailed</Code>.
       </P>
+
+      <H2>backoff progressif du polling</H2>
+      <P>
+        pour éviter de surcharger l'exécuteur (rate limits, lag sur jeux lourds, batterie),
+        le bridge n'utilise pas un polling fixe. il adapte dynamiquement l'intervalle :
+      </P>
+      <CodeBlock lang="text" code={`100ms   → 150ms   → 225ms   → 337ms   → 506ms   → 759ms   → 1000ms (cap)
+  ↑                              ×1.5 à chaque poll vide                              ↑
+  └─ reset immédiat quand une commande arrive           idle (1 req/s, négligeable) ──┘`} />
+      <Callout type="info" title="logique de backoff">
+        - <strong>100ms</strong> quand des commandes sont en attente (réactif)<br/>
+        - <strong>×1.5</strong> à chaque poll vide → augmente progressivement<br/>
+        - <strong>×2</strong> si request échoue (backoff agressif)<br/>
+        - <strong>cap à 1s</strong> en idle (1 req/s au lieu de 10 req/s)<br/>
+        - <strong>reset immédiat</strong> à 100ms dès qu'une commande arrive
+      </Callout>
+      <P>
+        le poll interval courant est remonté au serveur via heartbeat et visible dans le dashboard
+        (badge violet <Code>poll: XXXms</Code>). ça permet de voir en temps réel si le bridge est
+        actif (100ms) ou idle (1s).
+      </P>
+      <Callout type="success" title="bénéfices pratique">
+        sur delta avec un jeu lourd : au lieu de 10 requêtes/seconde en continu,
+        le bridge fait 1 req/s en idle. ça évite les rate limits, réduit la conso batterie,
+        et le jeu reste fluide. dès que l'ia envoie une commande, le bridge redevient réactif
+        (100ms) le temps de traiter.
+      </Callout>
     </div>
   );
 }

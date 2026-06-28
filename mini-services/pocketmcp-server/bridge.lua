@@ -23,7 +23,10 @@
 -- ════════════════════════════════════════════════════════════
 
 local BRIDGE_URL = getgenv().BridgeURL or "localhost:16384"
-local POLL_INTERVAL = 0.1   -- 100ms HTTP polling (rapide)
+local POLL_MIN = 0.1        -- 100ms (réactif quand commandes en attente)
+local POLL_MAX = 1.0        -- 1s cap (idle, négligeable)
+local POLL_GROWTH = 1.5     -- facteur de backoff progressif
+local POLL_ERROR_GROWTH = 2.0 -- backoff agressif si request échoue
 local REQUEST_TIMEOUT = 10
 local WS_DETECT_TIMEOUT = 3 -- 3s pour détecter si WebSocket marche
 
@@ -46,6 +49,8 @@ local state = {
     -- Auto-fallback HTTP : "request" | "httpget" | "httpfailed"
     httpMode = "request",
     requestFailures = 0,
+    -- Backoff progressif : commence à POLL_MIN, augmente si idle, cap à POLL_MAX
+    currentPoll = POLL_MIN,
     -- Spy state
     spyEnabled = false,
     spyFilter = nil,
@@ -426,11 +431,33 @@ local function register()
     end
 end
 
--- ─── Polling HTTP (100ms) ───────────────────────────────────
+-- ─── Polling HTTP avec backoff progressif ────────────────────
+-- 100ms quand commandes en attente (réactif)
+-- ×1.5 à chaque poll vide → 100ms → 150ms → 225ms → 337ms → 506ms → 759ms → 1s
+-- ×2 si request échoue (backoff agressif)
+-- Cap à 1s en idle (1 req/s, négligeable)
+-- Reset immédiat à 100ms dès qu'une commande arrive
 local function pollCommands()
     local res = post("/api/poll", { clientId = state.clientId })
-    if not res or not res.commands then return end
-    for _, cmd in ipairs(res.commands) do
+
+    -- Échec de la requête → backoff agressif
+    if not res then
+        state.currentPoll = math.min(state.currentPoll * POLL_ERROR_GROWTH, POLL_MAX)
+        return
+    end
+
+    local commands = res.commands or {}
+
+    if #commands == 0 then
+        -- Pas de commandes → backoff progressif
+        state.currentPoll = math.min(state.currentPoll * POLL_GROWTH, POLL_MAX)
+        return
+    end
+
+    -- Commandes reçues → reset au min (réactif)
+    state.currentPoll = POLL_MIN
+
+    for _, cmd in ipairs(commands) do
         local result = processCommand(cmd)
         post("/api/result", {
             clientId = state.clientId,
@@ -507,10 +534,12 @@ function startHttpPolling()
     if state._httpPollingStarted then return end
     state._httpPollingStarted = true
     task.spawn(function()
-        while task.wait(POLL_INTERVAL) do
+        while true do
             if state.connected then
                 pollCommands()
             end
+            -- Attend currentPoll (variable selon backoff)
+            task.wait(state.currentPoll)
         end
     end)
 end
@@ -524,6 +553,7 @@ task.spawn(function()
                 time = os.time(),
                 httpMode = state.httpMode,
                 transport = state.transport,
+                pollInterval = math.floor(state.currentPoll * 1000),  -- en ms
             })
         end
     end
@@ -555,4 +585,4 @@ print("[pocketmcp] bridge ready v3 · " .. state.clientId)
 print("[pocketmcp] serveur: " .. BRIDGE_URL)
 print("[pocketmcp] transport: " .. state.transport .. " (auto-détecté)")
 print("[pocketmcp] http mode: " .. state.httpMode .. " (auto-fallback)")
-print("[pocketmcp] poll interval: " .. POLL_INTERVAL * 1000 .. "ms")
+print("[pocketmcp] poll: " .. (POLL_MIN * 1000) .. "ms → " .. (POLL_MAX * 1000) .. "ms (backoff progressif)")

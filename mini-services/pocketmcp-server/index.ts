@@ -24,6 +24,7 @@ interface RobloxClient {
   connectedAt: number;
   lastHeartbeat: number;
   httpMode?: string;
+  pollInterval?: number;
   supports?: {
     decompile: boolean;
     drawing: boolean;
@@ -257,6 +258,7 @@ async function handleRequest(req: Request): Promise<Response> {
       if (client) {
         client.lastHeartbeat = Date.now();
         if (body.httpMode) client.httpMode = body.httpMode;
+        if (body.pollInterval !== undefined) client.pollInterval = body.pollInterval;
       }
       return jsonResponse({ ok: true });
     } catch {
@@ -739,6 +741,7 @@ function renderDashboard(): string {
   .badge-online { background: #1a4731; color: #4ade80; }
   .badge-http { background: #3b3220; color: #fbbf24; }
   .badge-transport { background: #1e293b; color: #38bdf8; }
+  .badge-poll { background: #2d1e3b; color: #c084fc; }
   .logs {
     background: #0d1117; border: 1px solid #21262d;
     border-radius: 6px; padding: 10px; height: 400px; overflow-y: auto;
@@ -862,6 +865,7 @@ async function refresh() {
             <span class="badge badge-online">●</span>
             <span class="badge badge-http">\${c.httpMode || 'request'}</span>
             <span class="badge badge-transport">\${c.transport || 'HTTP Polling'}</span>
+            <span class="badge badge-poll">poll: \${c.pollInterval || 100}ms</span>
           </div>
           <div class="client-info">
             clientId: \${c.clientId}<br>
