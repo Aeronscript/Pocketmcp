@@ -563,6 +563,31 @@ loadstring(game:HttpGet("http://localhost:16384/script.luau"))()`} />
         demandez à votre ia : <Code>"liste les clients connectés à pocketmcp"</Code><br/>
         elle devrait répondre avec votre pseudo roblox et l'id du client.
       </Callout>
+
+      <H2>installation sur pc (windows / mac / linux)</H2>
+      <P>
+        pocketmcp marche aussi sur pc. pas besoin de termux — installez juste node.js 18+ et bun,
+        puis clonez le repo.
+      </P>
+      <CodeBlock lang="bash" code={`# 1. installez node.js 18+ depuis nodejs.org (si manquant)
+# 2. installez bun :
+curl -fsSL https://bun.sh/install | bash
+
+# 3. clonez et démarrez :
+git clone https://github.com/aeronscript/pocketmcp.git
+cd pocketmcp
+bun install
+bun run dev`} />
+      <P>
+        ensuite, même chose : collez le bridge dans votre exécuteur pc (synapse, script-ware, krnl),
+        et configurez votre client ia avec <Code>http://localhost:16384/mcp</Code>.
+      </P>
+      <Callout type="success" title="features bonus sur pc">
+        sur pc, le bridge détecte automatiquement des capacités supplémentaires :<br/>
+        - <strong>websocket</strong> fonctionne (bascule auto depuis http polling → réactivité maximale)<br/>
+        - <strong>decompile()</strong> natif sur synapse / script-ware<br/>
+        - <strong>screenshot</strong> via screenshotworkspace()
+      </Callout>
     </div>
   );
 }
