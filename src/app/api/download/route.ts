@@ -18,6 +18,11 @@ const FILES: Record<string, { path: string; contentType: string; filename: strin
     contentType: "text/markdown; charset=utf-8",
     filename: "POCKETMCP-GUIDE.md",
   },
+  bundle: {
+    path: "pocketmcp-bundle.tar.gz",
+    contentType: "application/gzip",
+    filename: "pocketmcp-bundle.tar.gz",
+  },
 };
 
 export async function GET(req: NextRequest) {
@@ -25,7 +30,7 @@ export async function GET(req: NextRequest) {
 
   if (!type || !FILES[type]) {
     return NextResponse.json(
-      { error: "Type invalide. Types valides: setup, bridge, guide" },
+      { error: "Type invalide. Types valides: setup, bridge, guide, bundle" },
       { status: 400 }
     );
   }

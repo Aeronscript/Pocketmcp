@@ -238,6 +238,106 @@ export function SetupGuide() {
           ))}
         </div>
 
+        {/* Test sur tél sans GitHub */}
+        <div className="mt-10 rounded-xl border border-amber-500/40 bg-amber-500/5 p-5 sm:p-6">
+          <div className="flex items-start gap-3 mb-4">
+            <span className="text-amber-400 text-lg shrink-0">📱</span>
+            <div className="flex-1">
+              <h3 className="text-base font-mono font-semibold text-amber-300 flex items-center gap-2">
+                tester sur ton tél sans github
+              </h3>
+              <p className="mt-1 text-[12px] text-muted-foreground font-mono leading-relaxed">
+                {"// télécharge le bundle, transfère sur ton tél, installe en local — pas besoin d'attendre le push github"}
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {/* Step 1: Download */}
+            <div className="rounded-lg border border-border/40 bg-card p-3">
+              <div className="flex items-start gap-3">
+                <span className="shrink-0 h-6 w-6 rounded-md bg-amber-500/20 text-amber-300 flex items-center justify-center text-[11px] font-mono font-semibold">1</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[12px] font-mono font-semibold text-foreground mb-1">télécharge le bundle</div>
+                  <p className="text-[11px] text-muted-foreground font-mono mb-2">
+                    {"// 15 ko · contient index.ts + bridge.lua + install-local.sh + package.json"}
+                  </p>
+                  <a
+                    href="/api/download?type=bundle"
+                    className="inline-flex items-center gap-2 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/40 px-3 py-1.5 text-[11px] font-mono font-semibold hover:bg-amber-500/30 transition-colors"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    pocketmcp-bundle.tar.gz
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            {/* Step 2: Transfer */}
+            <div className="rounded-lg border border-border/40 bg-card p-3">
+              <div className="flex items-start gap-3">
+                <span className="shrink-0 h-6 w-6 rounded-md bg-amber-500/20 text-amber-300 flex items-center justify-center text-[11px] font-mono font-semibold">2</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[12px] font-mono font-semibold text-foreground mb-1">transfère sur ton tél android</div>
+                  <p className="text-[11px] text-muted-foreground font-mono leading-relaxed">
+                    {"// cable usb → dossier Download/, ou google drive, ou telegram saved messages"}
+                    <br />
+                    {"// le fichier doit arriver dans /storage/emulated/0/Download/"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Step 3: Install */}
+            <div className="rounded-lg border border-border/40 bg-card p-3">
+              <div className="flex items-start gap-3">
+                <span className="shrink-0 h-6 w-6 rounded-md bg-amber-500/20 text-amber-300 flex items-center justify-center text-[11px] font-mono font-semibold">3</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[12px] font-mono font-semibold text-foreground mb-1">dans termux, extrais et installe</div>
+                  <div className="mt-2 rounded-md border border-border/40 bg-[#0d1117] p-2.5 font-mono text-[11px] overflow-x-auto">
+                    <div><span className="text-amber-400">$</span> <span className="text-foreground">cd ~</span></div>
+                    <div><span className="text-amber-400">$</span> <span className="text-foreground">termux-setup-storage</span> <span className="text-muted-foreground"># autorise accès stockage</span></div>
+                    <div><span className="text-amber-400">$</span> <span className="text-foreground">tar xzf /storage/emulated/0/Download/pocketmcp-bundle.tar.gz</span></div>
+                    <div><span className="text-amber-400">$</span> <span className="text-foreground">cd pocketmcp-server</span></div>
+                    <div><span className="text-amber-400">$</span> <span className="text-foreground">bash install-local.sh</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Step 4: Start */}
+            <div className="rounded-lg border border-border/40 bg-card p-3">
+              <div className="flex items-start gap-3">
+                <span className="shrink-0 h-6 w-6 rounded-md bg-amber-500/20 text-amber-300 flex items-center justify-center text-[11px] font-mono font-semibold">4</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[12px] font-mono font-semibold text-foreground mb-1">démarre le serveur</div>
+                  <div className="mt-2 rounded-md border border-border/40 bg-[#0d1117] p-2.5 font-mono text-[11px] overflow-x-auto">
+                    <div><span className="text-amber-400">$</span> <span className="text-foreground">bun run dev</span></div>
+                    <div className="text-emerald-400">✓ serveur live sur http://localhost:16384</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Step 5: Roblox */}
+            <div className="rounded-lg border border-border/40 bg-card p-3">
+              <div className="flex items-start gap-3">
+                <span className="shrink-0 h-6 w-6 rounded-md bg-amber-500/20 text-amber-300 flex items-center justify-center text-[11px] font-mono font-semibold">5</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[12px] font-mono font-semibold text-foreground mb-1">dans delta/hydrogen, colle le bridge</div>
+                  <div className="mt-2 rounded-md border border-border/40 bg-[#0d1117] p-2.5 font-mono text-[11px] overflow-x-auto">
+                    <div className="text-emerald-400">loadstring(game:HttpGet("http://localhost:16384/script.luau"))()</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Download bundle */}
         <div className="mt-10 rounded-xl border border-primary/30 bg-primary/5 p-5 sm:p-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
