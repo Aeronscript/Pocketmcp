@@ -5,7 +5,8 @@ export function Footer() {
     <footer className="mt-auto border-t border-border/40 bg-secondary/10">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid gap-8 md:grid-cols-12">
-          <div className="md:col-span-5">
+          {/* Brand */}
+          <div className="md:col-span-6">
             <div className="flex items-center gap-2.5">
               <div className="relative h-8 w-8 rounded-lg bg-primary/10 ring-1 ring-primary/30 flex items-center justify-center">
                 <svg viewBox="0 0 24 24" className="h-4 w-4 text-primary" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -44,15 +45,16 @@ export function Footer() {
             </div>
           </div>
 
-          <div className="md:col-span-2 md:col-start-7">
+          {/* Sections du site */}
+          <div className="md:col-span-3 md:col-start-8">
             <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground mb-4 font-mono">
               sections
             </div>
             <ul className="space-y-2.5 text-sm font-mono">
               {[
                 { label: "dashboard", href: "#dashboard" },
-                { label: "setup", href: "#setup" },
                 { label: "bridge", href: "#bridge" },
+                { label: "setup", href: "#setup" },
                 { label: "outils", href: "#tools" },
                 { label: "faq", href: "#faq" },
               ].map((l) => (
@@ -65,22 +67,8 @@ export function Footer() {
             </ul>
           </div>
 
-          <div className="md:col-span-2">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground mb-4 font-mono">
-              ressources
-            </div>
-            <ul className="space-y-2.5 text-sm font-mono">
-              {["docs", "changelog", "lua api", "mcp spec", "discord"].map((l) => (
-                <li key={l}>
-                  <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
-                    {l}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="md:col-span-2">
+          {/* À savoir */}
+          <div className="md:col-span-3">
             <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground mb-4 font-mono">
               à savoir
             </div>
@@ -105,7 +93,7 @@ export function Footer() {
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
                 <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
               </span>
-              v0.1.0 · mit license
+              v0.3.0 · mit license
             </span>
           </div>
         </div>

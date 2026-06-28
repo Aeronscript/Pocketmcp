@@ -51,27 +51,27 @@ export function Bridge() {
   };
 
   return (
-    <section id="bridge" className="py-16 sm:py-24 scroll-mt-16 border-t border-border/40">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <section id="bridge" className="py-12 sm:py-24 scroll-mt-14 sm:scroll-mt-16 border-t border-border/40">
+      <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8">
         <div className="mb-8">
           <div className="flex items-center gap-2 text-xs font-mono text-primary mb-2">
             <span className="h-px w-8 bg-primary/40" />
             BRIDGE · LUA SCRIPT v3
           </div>
-          <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight font-mono">
+          <h2 className="text-xl sm:text-3xl font-semibold tracking-tight font-mono">
             <span className="text-muted-foreground">$</span> cat bridge.luau
           </h2>
-          <p className="mt-2 text-sm text-muted-foreground font-mono">
+          <p className="mt-2 text-xs sm:text-sm text-muted-foreground font-mono">
             {"// auto-servi par le serveur sur /script.luau · testé sur roblox mobile"}
           </p>
         </div>
 
         {/* Test results banner */}
-        <div className="mb-6 rounded-xl border border-primary/30 bg-primary/5 p-4 sm:p-5">
-          <div className="flex items-start gap-3">
-            <span className="text-primary text-lg shrink-0">✓</span>
-            <div className="flex-1">
-              <h3 className="text-sm font-mono font-semibold text-primary mb-3">
+        <div className="mb-6 rounded-xl border border-primary/30 bg-primary/5 p-3 sm:p-5">
+          <div className="flex items-start gap-2.5 sm:gap-3">
+            <span className="text-primary text-base sm:text-lg shrink-0">✓</span>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-[12px] sm:text-sm font-mono font-semibold text-primary mb-3">
                 testé sur roblox mobile (delta) — 100% fonctionnel
               </h3>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -163,15 +163,15 @@ export function Bridge() {
           </div>
 
           <div className="relative bg-[#0d1117]">
-            <pre className="max-h-[480px] overflow-auto p-4 text-[12px] leading-[1.6] font-mono">
+            <pre className="max-h-[400px] sm:max-h-[480px] overflow-auto p-3 sm:p-4 text-[10px] sm:text-[12px] leading-[1.6] font-mono">
               <code className="text-[#c9d1d9] whitespace-pre">
                 {view === "full" && loadingBridge ? "// chargement du bridge..." : code}
               </code>
             </pre>
           </div>
 
-          <div className="flex items-center justify-between px-3 py-1.5 border-t border-border/40 bg-secondary/30 text-[10px] font-mono text-muted-foreground">
-            <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between px-2.5 sm:px-3 py-1.5 border-t border-border/40 bg-secondary/30 text-[9px] sm:text-[10px] font-mono text-muted-foreground">
+            <div className="flex items-center gap-2 sm:gap-3">
               <span className="text-primary">● lua</span>
               <span>utf-8</span>
               <span>lf</span>

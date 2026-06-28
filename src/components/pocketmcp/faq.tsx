@@ -37,14 +37,14 @@ export function FAQ() {
   const [open, setOpen] = useState<number | null>(0);
 
   return (
-    <section id="faq" className="py-16 sm:py-24 scroll-mt-16 border-t border-border/40">
-      <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
-        <div className="mb-10">
+    <section id="faq" className="py-12 sm:py-24 scroll-mt-14 sm:scroll-mt-16 border-t border-border/40">
+      <div className="mx-auto max-w-3xl px-3 sm:px-6 lg:px-8">
+        <div className="mb-6 sm:mb-10">
           <div className="flex items-center gap-2 text-xs font-mono text-primary mb-2">
             <span className="h-px w-8 bg-primary/40" />
             FAQ
           </div>
-          <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight font-mono">
+          <h2 className="text-xl sm:text-3xl font-semibold tracking-tight font-mono">
             <span className="text-muted-foreground">$</span> man help
           </h2>
         </div>
@@ -59,13 +59,13 @@ export function FAQ() {
             >
               <button
                 onClick={() => setOpen(open === i ? null : i)}
-                className="w-full flex items-center justify-between gap-3 p-4 text-left hover:bg-secondary/30 transition-colors"
+                className="w-full flex items-center justify-between gap-2 p-3 sm:p-4 text-left hover:bg-secondary/30 transition-colors"
               >
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="text-primary font-mono text-[12px] shrink-0">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                  <span className="text-primary font-mono text-[11px] sm:text-[12px] shrink-0">
                     {String(i + 1).padStart(2, "0")}
                   </span>
-                  <span className="text-[13px] font-mono text-foreground/90">{faq.q}</span>
+                  <span className="text-[12px] sm:text-[13px] font-mono text-foreground/90">{faq.q}</span>
                 </div>
                 <svg
                   viewBox="0 0 24 24"
@@ -80,8 +80,8 @@ export function FAQ() {
                 </svg>
               </button>
               {open === i && (
-                <div className="px-4 pb-4 pt-0">
-                  <div className="pl-8 text-[13px] text-muted-foreground leading-relaxed font-mono">
+                <div className="px-3 sm:px-4 pb-3 sm:pb-4 pt-0">
+                  <div className="pl-6 sm:pl-8 text-[11px] sm:text-[13px] text-muted-foreground leading-relaxed font-mono">
                     <span className="text-primary">$ </span>
                     {faq.a}
                   </div>

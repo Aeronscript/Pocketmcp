@@ -89,38 +89,38 @@ export function SetupGuide() {
   };
 
   return (
-    <section id="setup" className="py-16 sm:py-24 scroll-mt-16 border-t border-border/40">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="mb-10">
+    <section id="setup" className="py-12 sm:py-24 scroll-mt-14 sm:scroll-mt-16 border-t border-border/40">
+      <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8">
+        <div className="mb-6 sm:mb-10">
           <div className="flex items-center gap-2 text-xs font-mono text-primary mb-2">
             <span className="h-px w-8 bg-primary/40" />
             SETUP · ~5 MINUTES TOTAL
           </div>
-          <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight font-mono">
+          <h2 className="text-xl sm:text-3xl font-semibold tracking-tight font-mono">
             <span className="text-muted-foreground">$</span> install guide
           </h2>
-          <p className="mt-2 text-sm text-muted-foreground font-mono">
+          <p className="mt-2 text-xs sm:text-sm text-muted-foreground font-mono">
             {"// 4 étapes · install → start → bridge → IA"}
           </p>
         </div>
 
         {/* Big install command — featured */}
-        <div className="mb-8 rounded-xl border border-primary/40 bg-primary/5 p-5 sm:p-6 relative overflow-hidden">
+        <div className="mb-6 sm:mb-8 rounded-xl border border-primary/40 bg-primary/5 p-4 sm:p-6 relative overflow-hidden">
           <div aria-hidden className="absolute -top-16 -right-16 h-48 w-48 rounded-full bg-primary/20 blur-3xl" />
           <div className="relative">
-            <div className="flex items-start justify-between gap-4 mb-3 flex-wrap">
-              <div>
-                <h3 className="text-base font-mono font-semibold text-primary flex items-center gap-2">
+            <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
+              <div className="min-w-0 flex-1">
+                <h3 className="text-[14px] sm:text-base font-mono font-semibold text-primary flex items-center gap-2">
                   <span>⚡</span>
                   install en 1 commande
                 </h3>
-                <p className="mt-1 text-[12px] text-muted-foreground font-mono">
+                <p className="mt-1 text-[11px] sm:text-[12px] text-muted-foreground font-mono">
                   {"// ouvre termux, colle ça, attends 3 minutes, c'est fini"}
                 </p>
               </div>
               <button
                 onClick={copyInstall}
-                className={`inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-[12px] font-mono font-semibold transition-all ${
+                className={`shrink-0 inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-[11px] sm:text-[12px] font-mono font-semibold transition-all ${
                   copiedInstall
                     ? "bg-primary/20 text-primary ring-1 ring-primary/40"
                     : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm shadow-primary/20"
@@ -139,12 +139,12 @@ export function SetupGuide() {
                       <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
                       <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                     </svg>
-                    copier la commande
+                    copier
                   </>
                 )}
               </button>
             </div>
-            <div className="rounded-lg border border-border/40 bg-[#0d1117] p-4 font-mono text-[12px] overflow-x-auto">
+            <div className="rounded-lg border border-border/40 bg-[#0d1117] p-3 sm:p-4 font-mono text-[10px] sm:text-[12px] overflow-x-auto">
               <span className="text-primary">$</span>{" "}
               <span className="text-foreground break-all">{INSTALL_ONE_LINE}</span>
             </div>
@@ -182,25 +182,25 @@ export function SetupGuide() {
                 activeStep === step.id ? "border-primary/40 shadow-lg shadow-primary/5" : "border-border/40"
               }`}
             >
-              <div className="flex items-start gap-4 p-4 sm:p-5">
-                <div className={`shrink-0 h-9 w-9 rounded-lg flex items-center justify-center font-mono text-sm font-semibold ${
+              <div className="flex items-start gap-3 p-3 sm:p-5">
+                <div className={`shrink-0 h-8 w-8 sm:h-9 sm:w-9 rounded-lg flex items-center justify-center font-mono text-[13px] sm:text-sm font-semibold ${
                   activeStep === step.id ? "bg-primary text-primary-foreground" : "bg-secondary/60 text-muted-foreground"
                 }`}>
                   {String(step.id).padStart(2, "0")}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-baseline gap-3 flex-wrap mb-0.5">
-                    <h3 className="text-[15px] font-mono font-semibold text-foreground">{step.title}</h3>
-                    <span className="text-[11px] text-muted-foreground font-mono">{"// "}{step.subtitle}</span>
+                  <div className="flex items-baseline gap-2 flex-wrap mb-0.5">
+                    <h3 className="text-[13px] sm:text-[15px] font-mono font-semibold text-foreground">{step.title}</h3>
+                    <span className="text-[10px] sm:text-[11px] text-muted-foreground font-mono">{"// "}{step.subtitle}</span>
                   </div>
-                  <div className="mt-3 rounded-lg border border-border/40 bg-[#0d1117] overflow-hidden">
-                    <div className="flex items-center justify-between px-3 py-1.5 border-b border-border/40 bg-secondary/30">
-                      <span className="text-[10px] text-muted-foreground font-mono">
+                  <div className="mt-2.5 sm:mt-3 rounded-lg border border-border/40 bg-[#0d1117] overflow-hidden">
+                    <div className="flex items-center justify-between px-2.5 sm:px-3 py-1.5 border-b border-border/40 bg-secondary/30">
+                      <span className="text-[9px] sm:text-[10px] text-muted-foreground font-mono">
                         ~/{step.id === 3 ? "roblox" : "pocketmcp"}
                       </span>
                       <button
                         onClick={() => copy(step.code, step.id)}
-                        className={`inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-[10px] font-mono transition-all ${
+                        className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[9px] sm:text-[10px] font-mono transition-all ${
                           copied === step.id
                             ? "bg-primary/20 text-primary"
                             : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
@@ -224,11 +224,11 @@ export function SetupGuide() {
                         )}
                       </button>
                     </div>
-                    <pre className="p-3 text-[12px] leading-relaxed font-mono overflow-x-auto">
+                    <pre className="p-2.5 sm:p-3 text-[10px] sm:text-[12px] leading-relaxed font-mono overflow-x-auto">
                       <code className="text-foreground/85">{step.code}</code>
                     </pre>
                   </div>
-                  <div className="mt-2 flex items-start gap-2 text-[11px] text-muted-foreground font-mono">
+                  <div className="mt-2 flex items-start gap-2 text-[10px] sm:text-[11px] text-muted-foreground font-mono">
                     <span className="text-amber-400/70 shrink-0">⚠</span>
                     <span>{step.note}</span>
                   </div>
