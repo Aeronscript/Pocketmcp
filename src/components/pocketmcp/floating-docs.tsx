@@ -1,10 +1,14 @@
 "use client";
 
-export function FloatingDocs() {
+interface Props {
+  onClick: () => void;
+}
+
+export function FloatingDocs({ onClick }: Props) {
   return (
-    <a
-      href="#docs"
-      aria-label="Documentation"
+    <button
+      onClick={onClick}
+      aria-label="Ouvrir la documentation"
       className="fixed bottom-4 left-4 z-50 h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/40 hover:bg-primary/90 hover:scale-105 active:scale-95 transition-all flex items-center justify-center group"
     >
       <svg
@@ -25,6 +29,6 @@ export function FloatingDocs() {
       <span className="absolute left-full ml-3 px-2.5 py-1.5 rounded-md bg-card border border-border text-[11px] font-mono text-foreground whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
         docs
       </span>
-    </a>
+    </button>
   );
 }

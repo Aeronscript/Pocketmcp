@@ -40,7 +40,6 @@ export function Footer() {
                 { label: "bridge", href: "#bridge" },
                 { label: "setup", href: "#setup" },
                 { label: "outils", href: "#tools" },
-                { label: "docs", href: "#docs" },
                 { label: "faq", href: "#faq" },
               ].map((l) => (
                 <li key={l.href}>

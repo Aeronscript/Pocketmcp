@@ -47,7 +47,6 @@ export function Header() {
               { label: "bridge", href: "#bridge" },
               { label: "setup", href: "#setup" },
               { label: "tools", href: "#tools" },
-              { label: "docs", href: "#docs" },
               { label: "faq", href: "#faq" },
             ].map((item) => (
               <a

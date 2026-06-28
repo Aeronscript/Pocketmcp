@@ -1,6 +1,10 @@
 "use client";
 
-export function Hero() {
+interface Props {
+  onOpenDocs?: () => void;
+}
+
+export function Hero({ onOpenDocs }: Props = {}) {
   return (
     <section id="top" className="relative overflow-hidden pt-8 pb-12 sm:pt-20 sm:pb-24">
       {/* Grid background */}
@@ -62,6 +66,18 @@ export function Hero() {
             >
               <span>$</span> démarrer l'install
             </a>
+            {onOpenDocs && (
+              <button
+                onClick={onOpenDocs}
+                className="inline-flex items-center gap-2 rounded-md border border-primary/40 bg-primary/5 px-4 sm:px-5 py-2.5 sm:py-3 text-[12px] sm:text-sm font-medium text-primary hover:bg-primary/10 transition-colors font-mono"
+              >
+                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                </svg>
+                lire la docs
+              </button>
+            )}
             <a
               href="#dashboard"
               className="inline-flex items-center gap-2 rounded-md border border-border bg-secondary/30 backdrop-blur-sm px-4 sm:px-5 py-2.5 sm:py-3 text-[12px] sm:text-sm font-medium hover:bg-secondary/60 transition-colors font-mono"
