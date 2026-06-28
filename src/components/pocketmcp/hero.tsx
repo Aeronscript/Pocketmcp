@@ -9,17 +9,29 @@ export function Hero() {
       <div aria-hidden className="absolute inset-0 -z-10 bg-grid [mask-image:radial-gradient(ellipse_70%_60%_at_50%_0%,black_30%,transparent_80%)] opacity-60" />
       <div aria-hidden className="absolute left-1/2 top-0 -z-10 h-[400px] w-[800px] -translate-x-1/2 rounded-full bg-primary/15 blur-[120px]" />
 
+      {/* Traînées lumineuses animées en arrière-plan */}
+      <div aria-hidden className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+        {/* Traînée 1 - gauche vers droite */}
+        <div className="absolute top-1/4 -left-1/4 h-px w-1/2 bg-gradient-to-r from-transparent via-primary/40 to-transparent animate-trail-1" />
+        <div className="absolute top-1/4 -left-1/4 h-20 w-1/2 bg-gradient-to-r from-transparent via-primary/10 to-transparent blur-xl animate-trail-1" />
+        {/* Traînée 2 - droite vers gauche */}
+        <div className="absolute top-1/2 -right-1/4 h-px w-1/2 bg-gradient-to-l from-transparent via-emerald-400/30 to-transparent animate-trail-2" />
+        <div className="absolute top-1/2 -right-1/4 h-20 w-1/2 bg-gradient-to-l from-transparent via-emerald-400/10 to-transparent blur-xl animate-trail-2" />
+        {/* Traînée 3 - plus subtile en bas */}
+        <div className="absolute bottom-1/4 -left-1/4 h-px w-1/2 bg-gradient-to-r from-transparent via-teal-400/20 to-transparent animate-trail-3" />
+      </div>
+
       <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl text-center">
           {/* Logo */}
           <div className="flex justify-center mb-6 sm:mb-8">
-            <div className="relative h-16 w-16 sm:h-20 sm:w-20">
+            <div className="relative h-20 w-20 sm:h-24 sm:w-24">
               <Image
                 src="/pocketmcp-logo-optimized.png"
                 alt="pocketmcp"
-                width={80}
-                height={80}
-                className="h-full w-full object-contain drop-shadow-[0_0_20px_rgba(74,222,128,0.4)]"
+                width={96}
+                height={96}
+                className="h-full w-full object-contain drop-shadow-[0_0_24px_rgba(74,222,128,0.5)]"
                 priority
               />
             </div>
