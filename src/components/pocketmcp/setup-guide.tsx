@@ -8,19 +8,20 @@ const INSTALL_ONE_LINE = `bash <(curl -fsSL https://raw.githubusercontent.com/ae
 const STEPS = [
   {
     id: 1,
-    title: "1 commande · install complet",
-    subtitle: "termux → pocketmcp prêt",
-    code: `# ouvrez termux et collez ça :
+    title: "installer via termux",
+    subtitle: "1 commande",
+    code: `# prérequis : termux installé (depuis f-droid)
+# ouvrez termux et collez :
 
 bash <(curl -fsSL https://raw.githubusercontent.com/aeronscript/pocketmcp/main/install.sh)
 
-# ça installe tout :
-#   - git, node 18+, curl
-#   - bun 1.3+
-#   - clone le serveur pocketmcp
-#   - configure le PATH
-# durée : ~3 minutes`,
-    note: "si curl n'est pas la : pkg install curl d'abord",
+# ça installe :
+#   - node 18+ (si manquant)
+#   - bun 1.3+ (si manquant)
+#   - clone le repo pocketmcp
+#   - configure le PATH dans ~/.bashrc
+# durée typique : 3 à 5 minutes selon votre connexion`,
+    note: "nécessite termux depuis f-droid (pas le play store, qui est obsolète). connexion internet requise pendant l'install.",
   },
   {
     id: 2,
@@ -45,7 +46,7 @@ loadstring(game:HttpGet("http://localhost:16384/script.luau"))()
 -- si websocket casse (cas sur mobile) :
 getgenv().DisableWebSocket = true
 loadstring(game:HttpGet("http://localhost:16384/script.luau"))()`,
-    note: "le serveur auto-sert le bridge, pas besoin de copier le code manuellement",
+    note: "le serveur auto-sert le bridge, pas besoin de copier le code manuellement. doit être exécuté dans un jeu roblox avec loadstring activé.",
   },
   {
     id: 4,
@@ -62,8 +63,8 @@ loadstring(game:HttpGet("http://localhost:16384/script.luau"))()`,
 }
 
 # le routeur mc propage a codex, claude, anyclaw...
-# votre IA peut maintenant executer du lua dans roblox !`,
-    note: "redémarrez votre client IA après la config pour qu'il detecte le serveur",
+# votre IA peut maintenant executer du lua dans roblox`,
+    note: "redémarrez votre client IA après la config pour qu'il détecte le serveur. compatible opencode, codex cli, claude code, claude desktop, anyclaw.",
   },
 ];
 

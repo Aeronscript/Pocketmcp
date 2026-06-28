@@ -74,16 +74,16 @@ export function Hero() {
         {/* Stats row */}
         <div className="mt-10 sm:mt-16 grid grid-cols-2 sm:grid-cols-4 gap-px bg-border/40 rounded-lg overflow-hidden border border-border/40">
           {[
-            { v: "16384", l: "port serveur" },
-            { v: "0₿", l: "coût total" },
-            { v: "~5min", l: "install termux" },
-            { v: "10", l: "outils MCP" },
+            { v: "16384", l: "port" },
+            { v: "0₿", l: "coût" },
+            { v: "~5min", l: "install" },
+            { v: "10", l: "outils" },
           ].map((s, i) => (
             <div key={i} className="bg-card p-3 sm:p-4 text-center">
               <div className="text-lg sm:text-2xl font-semibold tracking-tight tabular-nums font-mono text-primary">
                 {s.v}
               </div>
-              <div className="text-[9px] sm:text-[10px] text-muted-foreground mt-1 font-mono uppercase tracking-wider">
+              <div className="text-[10px] sm:text-[11px] text-foreground/60 mt-1 font-mono lowercase">
                 {s.l}
               </div>
             </div>

@@ -9,6 +9,7 @@ import { Tools } from "@/components/pocketmcp/tools";
 import { Docs } from "@/components/pocketmcp/docs";
 import { FAQ } from "@/components/pocketmcp/faq";
 import { Footer } from "@/components/pocketmcp/footer";
+import { FloatingDocs } from "@/components/pocketmcp/floating-docs";
 
 export default function Home() {
   return (
@@ -24,6 +25,7 @@ export default function Home() {
         <FAQ />
       </main>
       <Footer />
+      <FloatingDocs />
     </div>
   );
 }

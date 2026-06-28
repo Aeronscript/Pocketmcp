@@ -87,9 +87,28 @@ export function Docs() {
 function ArchiDoc() {
   return (
     <div className="space-y-6">
+      {/* Prérequis honnêtes */}
+      <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 sm:p-4">
+        <div className="flex items-start gap-2.5">
+          <span className="text-amber-400 text-sm shrink-0 mt-0.5">⚠</span>
+          <div className="flex-1 min-w-0">
+            <h4 className="text-[12px] sm:text-[13px] font-mono font-semibold text-amber-300 mb-2">
+              prérequis avant l'install
+            </h4>
+            <ul className="space-y-1.5 text-[11px] sm:text-[12px] text-foreground/80 leading-relaxed font-mono">
+              <li>• <span className="text-foreground">termux</span> installé depuis f-droid (la version play store est obsolète et casse tout)</li>
+              <li>• <span className="text-foreground">un exécuteur roblox mobile</span> : delta, hydrogen, ou krnl mobile (doit supporter loadstring + httpget)</li>
+              <li>• <span className="text-foreground">un client ia compatible mcp</span> : opencode, codex cli, claude code, claude desktop, anyclaw</li>
+              <li>• <span className="text-foreground">connexion internet</span> pendant l'install (récupère le repo + dépendances)</li>
+              <li>• <span className="text-foreground">compte roblox secondaire</span> recommandé (risque de ban existe pour tout exploit)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
       <div>
         <h3 className="text-sm font-mono font-semibold text-primary mb-2">vue d'ensemble</h3>
-        <p className="text-[12px] sm:text-[13px] text-muted-foreground leading-relaxed mb-3 font-mono">
+        <p className="text-[12px] sm:text-[13px] text-foreground/70 leading-relaxed mb-3 font-mono">
           pocketmcp est composé de 3 briques qui communiquent via http/json :
           un serveur local, un bridge lua côté roblox, et un client ia compatible mcp.
           tout tourne sur votre tél, aucun cloud.
@@ -138,10 +157,12 @@ function ArchiDoc() {
 
       <div>
         <h3 className="text-sm font-mono font-semibold text-primary mb-2">pourquoi pas websocket ?</h3>
-        <p className="text-[12px] sm:text-[13px] text-muted-foreground leading-relaxed font-mono">
-          testé sur delta mobile : l'api <code className="text-primary">WebSocket</code> existe mais ne se connecte pas.
-          le bridge essaie ws pendant 3s au démarrage, puis bascule sur http polling 100ms automatiquement.
-          c'est transparent pour l'utilisateur.
+        <p className="text-[12px] sm:text-[13px] text-foreground/70 leading-relaxed font-mono">
+          testé sur delta mobile : l'api <code className="text-primary">WebSocket</code> est bien présente dans l'exécuteur
+          mais ne parvient pas à se connecter. le bridge essaie ws pendant 3s au démarrage,
+          et si la connexion échoue il bascule automatiquement sur http polling 100ms.
+          c'est transparent, aucune config n'est nécessaire.
+          sur pc (synapse, script-ware) le websocket fonctionne normalement.
         </p>
       </div>
     </div>
