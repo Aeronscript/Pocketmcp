@@ -3,65 +3,55 @@
 import { useState } from "react";
 import { toast } from "sonner";
 
+const INSTALL_ONE_LINE = `bash <(curl -fsSL https://raw.githubusercontent.com/aeronscript/pocketmcp/main/install.sh)`;
+
 const STEPS = [
   {
     id: 1,
-    title: "installer termux",
-    subtitle: "depuis f-droid (pas le play store)",
-    code: `# telecharger termux depuis f-droid.org
-# (le play store est obsolete et casse tout)
+    title: "1 commande · install complet",
+    subtitle: "termux → pocketmcp prêt",
+    code: `# ouvre termux et colle ça :
 
-# une fois termux ouvert :
-pkg update && pkg upgrade -y
-pkg install git nodejs python -y`,
-    note: "termux du play store ne marche plus depuis 2023. utilise f-droid.",
+bash <(curl -fsSL https://raw.githubusercontent.com/aeronscript/pocketmcp/main/install.sh)
+
+# ça installe tout :
+#   - git, node 18+, curl
+#   - bun 1.3+
+#   - clone le serveur pocketmcp
+#   - configure le PATH
+# durée : ~3 minutes`,
+    note: "si curl n'est pas la : pkg install curl d'abord",
   },
   {
     id: 2,
-    title: "installer bun",
-    subtitle: "le runtime js pour le serveur mcp",
-    code: `curl -fsSL https://bun.sh/install | bash
-source ~/.bashrc
-bun --version`,
-    note: "si curl n'est pas la : pkg install curl",
+    title: "démarre le serveur",
+    subtitle: "1 commande",
+    code: `cd ~/pocketmcp
+bun run dev
+
+# serveur live sur http://localhost:16384
+# dashboard: http://localhost:16384
+# mcp endpoint: http://localhost:16384/mcp
+# bridge auto-servi sur /script.luau`,
+    note: "garde termux ouvert. pour le background : tmux new -s mcp puis bun run dev, detach avec Ctrl+B D",
   },
   {
     id: 3,
-    title: "cloner pocketmcp",
-    subtitle: "et installer les dependances",
-    code: `git clone https://github.com/aeronscript/pocketmcp.git
-cd pocketmcp
-bun install`,
-    note: "le repo sera public une fois le projet stabilise.",
+    title: "colle le bridge dans roblox",
+    subtitle: "delta / hydrogen / krnl mobile",
+    code: `-- dans ton executeur mobile, juste ça :
+loadstring(game:HttpGet("http://localhost:16384/script.luau"))()
+
+-- si websocket casse :
+getgenv().DisableWebSocket = true
+loadstring(game:HttpGet("http://localhost:16384/script.luau"))()`,
+    note: "le serveur auto-sert le bridge, pas besoin de copier le code manuellement",
   },
   {
     id: 4,
-    title: "demarrer le serveur",
-    subtitle: "sur localhost:16384",
-    code: `bun run dev
-
-# serveur demarre sur http://localhost:16384
-# dashboard accessible dans chrome mobile
-# mcp endpoint: http://localhost:16384/mcp`,
-    note: "garde termux ouvert. utilise tmux pour le background si besoin.",
-  },
-  {
-    id: 5,
-    title: "coller le bridge dans roblox",
-    subtitle: "delta / hydrogen / krnl mobile",
-    code: `-- dans ton executeur mobile :
-local url = "localhost:16384"
-loadstring(game:HttpGet("http://" .. url .. "/script.luau"))()
-
--- si websocket casse, ajoute avant :
-getgenv().DisableWebSocket = true`,
-    note: "doit etre execute dans un jeu roblox avec loadstring active.",
-  },
-  {
-    id: 6,
-    title: "connecter opencode",
-    subtitle: "via le routeur mc",
-    code: `# dans ta config opencode :
+    title: "connecte ton IA",
+    subtitle: "opencode / codex / claude",
+    code: `# dans la config de ton client IA :
 {
   "mcpServers": {
     "pocketmcp": {
@@ -71,15 +61,16 @@ getgenv().DisableWebSocket = true`,
   }
 }
 
-# ouvrir le dashboard :
-# chrome mobile → localhost:16384`,
-    note: "le routeur mc propage le serveur a codex, claude, anyclaw etc.",
+# le routeur mc propage a codex, claude, anyclaw...
+# ton IA peut maintenant executer du lua dans roblox !`,
+    note: "redémarre ton client IA après la config pour qu'il detecte le serveur",
   },
 ];
 
 export function SetupGuide() {
   const [activeStep, setActiveStep] = useState(1);
   const [copied, setCopied] = useState<number | null>(null);
+  const [copiedInstall, setCopiedInstall] = useState(false);
 
   const copy = (code: string, stepId: number) => {
     navigator.clipboard.writeText(code);
@@ -88,24 +79,80 @@ export function SetupGuide() {
     setTimeout(() => setCopied(null), 2000);
   };
 
+  const copyInstall = () => {
+    navigator.clipboard.writeText(INSTALL_ONE_LINE);
+    setCopiedInstall(true);
+    toast.success("commande d'install copiée", {
+      description: "colle-la dans termux",
+    });
+    setTimeout(() => setCopiedInstall(false), 2400);
+  };
+
   return (
     <section id="setup" className="py-16 sm:py-24 scroll-mt-16 border-t border-border/40">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mb-10">
           <div className="flex items-center gap-2 text-xs font-mono text-primary mb-2">
             <span className="h-px w-8 bg-primary/40" />
-            SETUP · ~5 MINUTES
+            SETUP · ~5 MINUTES TOTAL
           </div>
           <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight font-mono">
             <span className="text-muted-foreground">$</span> install guide
           </h2>
           <p className="mt-2 text-sm text-muted-foreground font-mono">
-            {"// 6 etapes · termux + bun + git + serveur + bridge + opencode"}
+            {"// 4 étapes · install → start → bridge → IA"}
           </p>
         </div>
 
+        {/* Big install command — featured */}
+        <div className="mb-8 rounded-xl border border-primary/40 bg-primary/5 p-5 sm:p-6 relative overflow-hidden">
+          <div aria-hidden className="absolute -top-16 -right-16 h-48 w-48 rounded-full bg-primary/20 blur-3xl" />
+          <div className="relative">
+            <div className="flex items-start justify-between gap-4 mb-3 flex-wrap">
+              <div>
+                <h3 className="text-base font-mono font-semibold text-primary flex items-center gap-2">
+                  <span>⚡</span>
+                  install en 1 commande
+                </h3>
+                <p className="mt-1 text-[12px] text-muted-foreground font-mono">
+                  {"// ouvre termux, colle ça, attends 3 minutes, c'est fini"}
+                </p>
+              </div>
+              <button
+                onClick={copyInstall}
+                className={`inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-[12px] font-mono font-semibold transition-all ${
+                  copiedInstall
+                    ? "bg-primary/20 text-primary ring-1 ring-primary/40"
+                    : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm shadow-primary/20"
+                }`}
+              >
+                {copiedInstall ? (
+                  <>
+                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    copié !
+                  </>
+                ) : (
+                  <>
+                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                    </svg>
+                    copier la commande
+                  </>
+                )}
+              </button>
+            </div>
+            <div className="rounded-lg border border-border/40 bg-[#0d1117] p-4 font-mono text-[12px] overflow-x-auto">
+              <span className="text-primary">$</span>{" "}
+              <span className="text-foreground break-all">{INSTALL_ONE_LINE}</span>
+            </div>
+          </div>
+        </div>
+
         {/* Steps navigation */}
-        <div className="flex flex-wrap gap-1.5 mb-8">
+        <div className="flex flex-wrap gap-1.5 mb-6">
           {STEPS.map((s) => (
             <button
               key={s.id}
@@ -120,7 +167,7 @@ export function SetupGuide() {
               }`}
             >
               <span className="tabular-nums">{String(s.id).padStart(2, "0")}</span>
-              {s.title}
+              {s.title.split("·")[0].trim()}
             </button>
           ))}
         </div>
@@ -148,7 +195,9 @@ export function SetupGuide() {
                   </div>
                   <div className="mt-3 rounded-lg border border-border/40 bg-[#0d1117] overflow-hidden">
                     <div className="flex items-center justify-between px-3 py-1.5 border-b border-border/40 bg-secondary/30">
-                      <span className="text-[10px] text-muted-foreground font-mono">~/{step.id === 5 ? "roblox" : "pocketmcp"}</span>
+                      <span className="text-[10px] text-muted-foreground font-mono">
+                        ~/{step.id === 3 ? "roblox" : "pocketmcp"}
+                      </span>
                       <button
                         onClick={() => copy(step.code, step.id)}
                         className={`inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-[10px] font-mono transition-all ${
@@ -195,10 +244,10 @@ export function SetupGuide() {
             <div className="flex-1">
               <h3 className="text-base font-mono font-semibold text-foreground flex items-center gap-2">
                 <span className="text-primary">⬇</span>
-                bundle complet
+                fichiers à télécharger manuellement
               </h3>
               <p className="mt-1 text-[12px] text-muted-foreground font-mono">
-                {"// setup.sh + bridge.luau + guide pdf · 12 ko total"}
+                {"// si tu préfères pas utiliser le script auto · install.sh + bridge.luau + guide.md"}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -206,7 +255,7 @@ export function SetupGuide() {
                 href="/api/download?type=setup"
                 className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-[12px] font-mono text-primary-foreground hover:bg-primary/90 transition-colors"
               >
-                setup.sh
+                install.sh
               </a>
               <a
                 href="/api/download?type=bridge"
@@ -221,6 +270,45 @@ export function SetupGuide() {
                 guide.md
               </a>
             </div>
+          </div>
+        </div>
+
+        {/* Live server status */}
+        <div className="mt-6 rounded-xl border border-border/40 bg-card p-5">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <h3 className="text-sm font-mono font-semibold text-foreground">
+              <span className="text-primary">●</span> serveur live (démo)
+            </h3>
+            <span className="text-[10px] font-mono text-muted-foreground">localhost:16384</span>
+          </div>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <a
+              href="http://localhost:16384"
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-md bg-secondary/40 hover:bg-secondary/60 transition-colors py-3 px-2"
+            >
+              <div className="text-[10px] text-muted-foreground font-mono uppercase mb-1">dashboard</div>
+              <div className="text-[11px] font-mono text-primary">/:16384</div>
+            </a>
+            <a
+              href="http://localhost:16384/health"
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-md bg-secondary/40 hover:bg-secondary/60 transition-colors py-3 px-2"
+            >
+              <div className="text-[10px] text-muted-foreground font-mono uppercase mb-1">health</div>
+              <div className="text-[11px] font-mono text-primary">/health</div>
+            </a>
+            <a
+              href="http://localhost:16384/script.luau"
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-md bg-secondary/40 hover:bg-secondary/60 transition-colors py-3 px-2"
+            >
+              <div className="text-[10px] text-muted-foreground font-mono uppercase mb-1">bridge</div>
+              <div className="text-[11px] font-mono text-primary">/script.luau</div>
+            </a>
           </div>
         </div>
       </div>
