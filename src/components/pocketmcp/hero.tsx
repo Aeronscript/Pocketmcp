@@ -29,9 +29,8 @@ export function Hero() {
 
           {/* Subtitle */}
           <p className="mt-4 sm:mt-6 text-[13px] sm:text-lg text-muted-foreground leading-relaxed max-w-2xl mx-auto font-mono">
-            le serveur <span className="text-primary">roblox-executor-mcp</span> branché
-            sur ton tél android. termux + delta + opencode = ton ia code dans roblox
-            depuis ton poche.
+            le serveur <span className="text-primary">roblox-executor-mcp</span> adapté pour android.
+            termux + delta + opencode = votre ia code dans roblox directement depuis votre poche.
           </p>
 
           {/* Terminal preview */}

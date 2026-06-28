@@ -6,6 +6,7 @@ import { Dashboard } from "@/components/pocketmcp/dashboard";
 import { Bridge } from "@/components/pocketmcp/bridge";
 import { SetupGuide } from "@/components/pocketmcp/setup-guide";
 import { Tools } from "@/components/pocketmcp/tools";
+import { Docs } from "@/components/pocketmcp/docs";
 import { FAQ } from "@/components/pocketmcp/faq";
 import { Footer } from "@/components/pocketmcp/footer";
 
@@ -19,6 +20,7 @@ export default function Home() {
         <Bridge />
         <SetupGuide />
         <Tools />
+        <Docs />
         <FAQ />
       </main>
       <Footer />

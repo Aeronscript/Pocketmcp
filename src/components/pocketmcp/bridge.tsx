@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 
-const BRIDGE_MINIMAL = `-- dans ton executeur mobile, juste ça :
+const BRIDGE_MINIMAL = `-- dans votre executeur mobile, juste ça :
 loadstring(game:HttpGet("http://localhost:16384/script.luau"))()
 
 -- le bridge v3 s'auto-sert avec :
@@ -106,60 +106,68 @@ export function Bridge() {
 
         {/* Bridge code viewer */}
         <div className="rounded-xl border border-border/60 bg-card overflow-hidden shadow-2xl shadow-primary/5">
+          {/* Toolbar principale : traffic lights + path + bouton copier (toujours visible) */}
           <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-border/40 bg-secondary/30">
-            <div className="flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full bg-rose-500/70" />
-              <span className="h-2.5 w-2.5 rounded-full bg-amber-500/70" />
-              <span className="h-2.5 w-2.5 rounded-full bg-primary/70" />
-              <span className="ml-3 text-[11px] text-muted-foreground font-mono">~/bridge.luau</span>
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <div className="flex items-center gap-1 rounded-md bg-background/60 p-0.5 border border-border/40">
-                <button
-                  onClick={() => setView("minimal")}
-                  className={`px-2.5 py-1 text-[10px] font-mono rounded transition-all ${
-                    view === "minimal" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  minimal
-                </button>
-                <button
-                  onClick={() => setView("full")}
-                  className={`px-2.5 py-1 text-[10px] font-mono rounded transition-all ${
-                    view === "full" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  full source
-                </button>
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full bg-rose-500/70" />
+                <span className="h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full bg-amber-500/70" />
+                <span className="h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full bg-primary/70" />
               </div>
+              <span className="ml-1 sm:ml-2 text-[10px] sm:text-[11px] text-muted-foreground font-mono truncate">
+                ~/bridge.luau
+              </span>
+            </div>
+            <button
+              onClick={copy}
+              className={`shrink-0 inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[11px] font-mono font-semibold transition-all ${
+                copied
+                  ? "bg-primary/20 text-primary ring-1 ring-primary/40"
+                  : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm shadow-primary/20"
+              }`}
+            >
+              {copied ? (
+                <>
+                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  copié !
+                </>
+              ) : (
+                <>
+                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                  </svg>
+                  copier
+                </>
+              )}
+            </button>
+          </div>
 
+          {/* Toolbar secondaire : toggle minimal/full source */}
+          <div className="flex items-center justify-between gap-2 px-3 py-1.5 border-b border-border/40 bg-background/40">
+            <div className="flex items-center gap-1 rounded-md bg-secondary/60 p-0.5 border border-border/40">
               <button
-                onClick={copy}
-                className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[11px] font-mono font-semibold transition-all ${
-                  copied
-                    ? "bg-primary/20 text-primary ring-1 ring-primary/40"
-                    : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm shadow-primary/20"
+                onClick={() => setView("minimal")}
+                className={`px-2.5 py-1 text-[10px] sm:text-[11px] font-mono rounded transition-all ${
+                  view === "minimal" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                {copied ? (
-                  <>
-                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                    copié !
-                  </>
-                ) : (
-                  <>
-                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                    </svg>
-                    copier
-                  </>
-                )}
+                minimal
+              </button>
+              <button
+                onClick={() => setView("full")}
+                className={`px-2.5 py-1 text-[10px] sm:text-[11px] font-mono rounded transition-all ${
+                  view === "full" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                full source
               </button>
             </div>
+            <span className="text-[9px] sm:text-[10px] text-muted-foreground font-mono">
+              {view === "full" ? "v3 · 14KB · 350 lignes" : "1 ligne · copie-colle dans roblox"}
+            </span>
           </div>
 
           <div className="relative bg-[#0d1117]">

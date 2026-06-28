@@ -24,29 +24,13 @@ export function Footer() {
               </div>
             </div>
             <p className="mt-4 text-sm text-muted-foreground leading-relaxed max-w-md font-mono">
-              serveur mcp roblox pour android. branche ton tél sur opencode, codex,
+              serveur mcp roblox pour android. branchez votre tél sur opencode, codex,
               claude ou anyclaw via le routeur mc. 100% local, 0 dépendance cloud.
             </p>
-            <div className="mt-5 inline-flex items-center gap-3 rounded-lg border border-border/60 bg-secondary/30 px-3.5 py-2.5">
-              <div className="relative h-7 w-7 rounded-md bg-gradient-to-br from-primary/30 to-primary/10 ring-1 ring-primary/30 flex items-center justify-center">
-                <span className="text-[11px] font-bold text-primary font-mono">A</span>
-              </div>
-              <div className="flex flex-col leading-tight">
-                <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-mono">
-                  créé par
-                </span>
-                <span className="text-[13px] font-semibold text-foreground font-mono">
-                  aeronscript
-                  <span className="ml-1.5 text-muted-foreground font-normal">
-                    · mohamed amine
-                  </span>
-                </span>
-              </div>
-            </div>
           </div>
 
           {/* Sections du site */}
-          <div className="md:col-span-3 md:col-start-8">
+          <div className="md:col-span-3 md:col-start-9">
             <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground mb-4 font-mono">
               sections
             </div>
@@ -56,6 +40,7 @@ export function Footer() {
                 { label: "bridge", href: "#bridge" },
                 { label: "setup", href: "#setup" },
                 { label: "outils", href: "#tools" },
+                { label: "docs", href: "#docs" },
                 { label: "faq", href: "#faq" },
               ].map((l) => (
                 <li key={l.href}>

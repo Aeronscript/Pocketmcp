@@ -4,32 +4,36 @@ import { useState } from "react";
 
 const FAQS = [
   {
-    q: "ça marche avec tous les executeurs mobile ?",
-    a: "testé avec delta, hydrogen et krnl mobile. arceus x devrait marcher aussi tant qu'il supporte loadstring + httpget. si websocket casse, ajoute getgenv().DisableWebSocket = true avant le bridge — le serveur bascule en http polling (un peu plus lent mais fonctionnel).",
+    q: "ça marche avec tous les exécuteurs mobile ?",
+    a: "testé avec delta, hydrogen et krnl mobile. arceus x devrait marcher aussi tant qu'il supporte loadstring + httpget. si websocket casse (cas sur mobile), le bridge bascule automatiquement en http polling 100ms — pas besoin de configurer quoi que ce soit.",
   },
   {
     q: "pourquoi pas roblox studio mobile ?",
-    a: "roblox studio n'existe pas sur mobile. et l'app roblox officielle ne supporte pas loadstring. tu dois utiliser un executeur mobile (apk modifié) qui injecte le support lua.",
+    a: "roblox studio n'existe pas sur mobile. et l'app roblox officielle ne supporte pas loadstring. il faut utiliser un exécuteur mobile (apk modifié) qui injecte le support lua.",
   },
   {
-    q: "est-ce que je peux me faire ban ?",
-    a: "oui. tout exploit roblox comporte un risque de ban. le bridge lui-même est discret (juste un websocket + http), mais les actions que tu fais (walkspeed, esp, etc) peuvent être détectées par les anti-cheats des jeux. utilise sur un compte secondaire.",
+    q: "est-ce qu'on peut se faire ban ?",
+    a: "oui. tout exploit roblox comporte un risque de ban. le bridge lui-même est discret (juste http + json), mais les actions exécutées (walkspeed, esp, etc) peuvent être détectées par les anti-cheats des jeux. utilisez un compte secondaire.",
   },
   {
     q: "le serveur consomme combien de batterie ?",
-    a: "node + bun sur termux = ~2-5% batterie/heure en idle, ~8-12% quand l'ia exécute du code en boucle. si ta batterie chute, mets termux en background avec tmux et ferme le dashboard.",
+    a: "node + bun sur termux = ~2-5% batterie/heure en idle, ~8-12% quand l'ia exécute du code en boucle. si la batterie chute, mettez termux en background avec tmux et fermez le dashboard chrome.",
   },
   {
-    q: "mon ia (codex/claude) voit-elle roblox ?",
-    a: "non directement. l'ia appelle les outils mcp (execute_code, get_instances, etc) qui interrogent le serveur pocketmcp, qui à son tour envoie des commandes au client roblox via websocket. l'ia voit le résultat (texte, json) mais pas l'écran — sauf si tu utilises l'outil screenshot.",
+    q: "l'ia (codex/claude) voit-elle roblox ?",
+    a: "non directement. l'ia appelle les outils mcp (execute_code, get_instances, etc) qui interrogent le serveur pocketmcp, qui à son tour envoie des commandes au client roblox via http polling. l'ia voit le résultat (texte, json) mais pas l'écran — sauf si l'outil screenshot est supporté par l'exécuteur.",
   },
   {
     q: "ça marche hors-ligne ?",
-    a: "le serveur pocketmcp tourne 100% en local sur ton tél. mais ton client ia (codex, opencode) nécessite souvent internet pour appeler les apis des llms. donc tu as besoin de data/wifi pour l'ia, mais pas pour le bridge roblox.",
+    a: "le serveur pocketmcp tourne 100% en local sur votre tél. mais votre client ia (codex, opencode) nécessite souvent internet pour appeler les apis des llms. donc il faut du data/wifi pour l'ia, mais pas pour le bridge roblox.",
   },
   {
-    q: "comment partager le serveur avec mon pc sur le même wifi ?",
-    a: "par défaut le serveur écoute sur localhost. pour l'exposer sur ton lan, lance-le avec --host 0.0.0.0 puis connecte ton pc via http://[ip-tel]:16384. attention : pas d'auth, donc uniquement sur un réseau de confiance.",
+    q: "comment partager le serveur avec un pc sur le même wifi ?",
+    a: "par défaut le serveur écoute sur 0.0.0.0 (toutes les interfaces). récupérez l'ip du tél (ifconfig wlan0) puis connectez le pc via http://[ip-tel]:16384. attention : pas d'auth, donc uniquement sur un réseau de confiance.",
+  },
+  {
+    q: "combien de clients roblox peuvent se connecter ?",
+    a: "autant que vous voulez. chaque client a sa propre queue de commandes et son propre id. l'ia peut cibler un client spécifique via le paramètre clientId, sinon le serveur utilise le premier client connecté.",
   },
 ];
 
