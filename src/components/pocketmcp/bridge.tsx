@@ -34,7 +34,7 @@ export function Bridge() {
         setLoadingBridge(false);
       })
       .catch(() => {
-        setBridgeCode("-- serveur injoignable sur localhost:16384\n-- démarre-le avec: cd ~/pocketmcp && bun run dev");
+        setBridgeCode("-- serveur injoignable sur localhost:16384\n-- démarre-le avec: cd ~/pocketmcp && bun run index.min.js");
         setLoadingBridge(false);
       });
   }, []);

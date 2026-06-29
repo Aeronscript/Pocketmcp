@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 
-const INSTALL_ONE_LINE = `bash <(curl -fsSL https://raw.githubusercontent.com/aeronscript/pocketmcp/main/install.sh)`;
+const INSTALL_ONE_LINE = `bash <(curl -fsSL https://pmcp.space-z.ai/api/install.sh)`;
 
 const STEPS = [
   {
@@ -13,7 +13,7 @@ const STEPS = [
     code: `# prérequis : termux installé (depuis f-droid)
 # ouvrez termux et collez :
 
-bash <(curl -fsSL https://raw.githubusercontent.com/aeronscript/pocketmcp/main/install.sh)
+bash <(curl -fsSL https://pmcp.space-z.ai/api/install.sh)
 
 # ça installe :
 #   - node 18+ (si manquant)
@@ -29,13 +29,13 @@ bash <(curl -fsSL https://raw.githubusercontent.com/aeronscript/pocketmcp/main/i
     title: "démarrez le serveur",
     subtitle: "1 commande",
     code: `cd ~/pocketmcp
-bun run dev
+bun run index.min.js
 
 # serveur live sur http://localhost:16384
 # dashboard: http://localhost:16384
 # mcp endpoint: http://localhost:16384/mcp
 # bridge auto-servi sur /script.luau`,
-    note: "gardez termux ouvert. pour le background : tmux new -s mcp puis bun run dev, detach avec Ctrl+B D",
+    note: "gardez termux ouvert. pour le background : tmux new -s mcp puis bun run index.min.js, detach avec Ctrl+B D",
   },
   {
     id: 3,

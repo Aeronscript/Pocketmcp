@@ -130,7 +130,7 @@ export function LiveTerminal({ serverUrl = "http://localhost:16384" }: Props) {
         }
       } catch {
         await typeLine(term, "✗ serveur pocketmcp injoignable sur localhost:16384\r\n", COLORS.red, 40);
-        await typeLine(term, "  démarrez-le avec: cd ~/pocketmcp && bun run dev\r\n", COLORS.dim, 30);
+        await typeLine(term, "  démarrez-le avec: cd ~/pocketmcp && bun run index.min.js\r\n", COLORS.dim, 30);
         await typeLine(term, "  (le terminal affichera les logs en direct une fois connecté)\r\n", COLORS.dim, 30);
       }
 

@@ -352,7 +352,7 @@ function IntroSection() {
         - pocketmcp ne contourne pas l'anti-cheat de roblox. c'est à vous de coder vos scripts en conséquence.<br/>
         - screenshot ne marche pas sur mobile (pas d'api screenshotworkspace). le serveur répond automatiquement avec des alternatives (get_instances, decompile_script) au lieu de timeout.<br/>
         - websocket ne fonctionne pas sur mobile (bascule auto en http polling 100ms).<br/>
-        - le serveur n'a pas d'authentification. ne l'exposez pas sur internet.
+        - le serveur écoute sur localhost par défaut (sécurisé). authentification obligatoire (code admin hashé SHA-256 + codes temporaires à usage unique).
       </Callout>
 
       <H2>public visé</H2>
@@ -522,7 +522,7 @@ pkg install curl`} />
         une seule commande. le script installe node.js et bun si manquants,
         clone le repo, installe les dépendances npm, et configure le PATH.
       </P>
-      <CodeBlock lang="bash" code={`bash <(curl -fsSL https://raw.githubusercontent.com/aeronscript/pocketmcp/main/install.sh)
+      <CodeBlock lang="bash" code={`bash <(curl -fsSL https://pmcp.space-z.ai/api/install.sh)
 
 # ça installe :
 #   - node 18+ (si manquant)
@@ -539,7 +539,7 @@ pkg install curl`} />
 
       <H2>étape 3 — démarrer le serveur</H2>
       <CodeBlock lang="bash" code={`cd ~/pocketmcp
-bun run dev
+bun run index.min.js
 
 # serveur live sur http://localhost:16384
 # dashboard: http://localhost:16384
@@ -547,7 +547,7 @@ bun run dev
 # bridge auto-servi sur /script.luau`} />
       <Callout type="info" title="garder termux ouvert">
         si vous fermez termux, le serveur s'arrête. pour le background :<br/>
-        <Code>tmux new -s mcp</Code> puis <Code>bun run dev</Code>, détachez avec <Code>Ctrl+B D</Code>.<br/>
+        <Code>tmux new -s mcp</Code> puis <Code>bun run index.min.js</Code>, détachez avec <Code>Ctrl+B D</Code>.<br/>
         reprenez plus tard avec <Code>tmux attach -t mcp</Code>.
       </Callout>
 
@@ -592,18 +592,21 @@ loadstring(game:HttpGet("http://localhost:16384/script.luau"))()`} />
 
       <H2>installation sur pc (windows / mac / linux)</H2>
       <P>
-        pocketmcp marche aussi sur pc. pas besoin de termux — installez juste node.js 18+ et bun,
-        puis clonez le repo.
+        pocketmcp marche aussi sur pc. pas besoin de termux — téléchargez le serveur
+        depuis le site, installez node.js 18+ et bun.
       </P>
       <CodeBlock lang="bash" code={`# 1. installez node.js 18+ depuis nodejs.org (si manquant)
 # 2. installez bun :
 curl -fsSL https://bun.sh/install | bash
 
-# 3. clonez et démarrez :
-git clone https://github.com/aeronscript/pocketmcp.git
-cd pocketmcp
+# 3. téléchargez le serveur depuis le site :
+mkdir ~/pocketmcp && cd ~/pocketmcp
+curl -sL https://pmcp.space-z.ai/api/server-bundle -o server.tar.gz
+tar xzf server.tar.gz && mv pocketmcp-server/* . && rm -rf pocketmcp-server server.tar.gz
+
+# 4. installez les dépendances et démarrez :
 bun install
-bun run dev`} />
+bun run index.min.js`} />
       <P>
         ensuite, même chose : collez le bridge dans votre exécuteur pc (synapse, script-ware, krnl),
         et configurez votre client ia avec <Code>http://localhost:16384/mcp</Code>.
@@ -826,7 +829,7 @@ curl http://192.168.1.42:16384/health
   }
 }`} />
       <Callout type="danger" title="sécurité">
-        pas d'authentification sur le port 16384. utilisez uniquement sur un réseau de confiance
+        authentification obligatoire sur le port 16384 (code admin hashé + codes temporaires). bind localhost par défaut — utilisez --host 0.0.0.0 uniquement sur un réseau de confiance
         (wifi maison, hotspot perso). ne exposez jamais ce port sur internet sans vpn/ssh tunnel.
       </Callout>
     </div>
@@ -1090,7 +1093,7 @@ sur le pc, testez :
 
 puis configurez votre client ia avec cette url.
 
-⚠ pas d'auth. réseau de confiance uniquement.`,
+⚠ auth obligatoire (code admin + whitelist). bind localhost par défaut. réseau de confiance uniquement si --host 0.0.0.0.`,
     },
     {
       q: "le serveur consomme beaucoup de batterie",
@@ -1098,7 +1101,7 @@ puis configurez votre client ia avec cette url.
 ~8-12% quand l'ia exécute du code en boucle.
 
 astuces :
-  - tmux new -s mcp, lancez bun run dev, détachez avec Ctrl+B D
+  - tmux new -s mcp, lancez bun run index.min.js, détachez avec Ctrl+B D
   - fermez le dashboard chrome si vous ne l'utilisez pas
   - réduisez le poll interval si vous n'avez pas besoin de réactivité
     (mais c'est dans le code, pas une variable getgenv)`,
@@ -1186,7 +1189,7 @@ function SecuritySection({ onBack }: { onBack: () => void }) {
       <div className="space-y-2.5">
         {[
           { t: "compte secondaire", d: "créez un compte roblox dédié pour tester. jamais votre compte principal avec vos items." },
-          { t: "réseau de confiance", d: "le port 16384 n'a pas d'auth. ne l'exposez que sur votre wifi perso, jamais sur internet." },
+          { t: "auth + localhost", d: "le port 16384 a une authentification obligatoire (code admin hashé + whitelist). bind localhost par défaut. utilisez --host 0.0.0.0 uniquement sur wifi de confiance." },
           { t: "client ia de confiance", d: "le serveur exécute ce que l'ia envoie. n'utilisez que des clients ia que vous contrôlez." },
           { t: "scripts audités", d: "si vous exécutez du code trouvé sur internet, lisez-le avant. loadstring peut faire n'importe quoi." },
           { t: "déconnexion propre", d: "coupez le serveur quand vous ne l'utilisez pas. Ctrl+C dans termux." },

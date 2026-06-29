@@ -29,7 +29,7 @@ const FAQS = [
   },
   {
     q: "comment partager le serveur avec un pc sur le même wifi ?",
-    a: "par défaut le serveur écoute sur 0.0.0.0 (toutes les interfaces). récupérez l'ip du tél (ifconfig wlan0) puis connectez le pc via http://[ip-tel]:16384. attention : pas d'auth, donc uniquement sur un réseau de confiance.",
+    a: "par défaut le serveur écoute sur localhost. pour le partager sur lan, lancez avec --host 0.0.0.0. récupérez l'ip du tél (ifconfig wlan0) puis connectez le pc via http://[ip-tel]:16384. authentification obligatoire (code admin + whitelist). réseau de confiance uniquement.",
   },
   {
     q: "combien de clients roblox peuvent se connecter ?",
