@@ -4,13 +4,84 @@
 // Port: 16384
 // ════════════════════════════════════════════════════════════
 
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, existsSync, writeFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { homedir } from "os";
+import { randomBytes, createHash } from "crypto";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = 16384;
 const HOST = "0.0.0.0";
+
+// ─── Auth : admin code + temp codes ─────────────────────────
+function loadAdminCode(): string {
+  const envCode = process.env.POCKETMCP_ADMIN_CODE;
+  if (envCode) return envCode;
+  const envFile = join(homedir(), ".pocketmcp.env");
+  try {
+    if (existsSync(envFile)) {
+      const content = readFileSync(envFile, "utf-8").trim();
+      const match = content.match(/POCKETMCP_ADMIN_CODE=(.+)/);
+      if (match) return match[1].trim();
+    }
+  } catch {}
+  const generated = "adm_" + randomBytes(7).toString("hex");
+  try {
+    writeFileSync(envFile, `POCKETMCP_ADMIN_CODE=${generated}\n`, { mode: 0o600 });
+    console.log(`\n┌─────────────────────────────────────────────────┐`);
+    console.log(`│  🔐 ADMIN CODE: ${generated.padEnd(34)}│`);
+    console.log(`│  Sauvegardé dans ~/.pocketmcp.env               │`);
+    console.log(`└─────────────────────────────────────────────────┘\n`);
+  } catch {
+    console.log(`\n⚠ ADMIN CODE: ${generated}\n`);
+  }
+  return generated;
+}
+
+const ADMIN_CODE = loadAdminCode();
+
+const tempCodes = new Map<string, { createdAt: number; claimedBy: string | null; label?: string; ttl: number }>();
+const TEMP_CODE_TTL = 60 * 60 * 1000;
+const MAX_TTL = 5 * 60 * 60 * 1000;
+
+function generateTempCode(label?: string, duration?: number): string {
+  const code = "tmp_" + randomBytes(6).toString("hex");
+  const ttl = Math.min(duration || TEMP_CODE_TTL, MAX_TTL);
+  tempCodes.set(code, { createdAt: Date.now(), claimedBy: null, label, ttl });
+  return code;
+}
+
+function isValidCode(code: string): { valid: boolean; role: "admin" | "temp" | null } {
+  if (!code) return { valid: false, role: null };
+  if (code === ADMIN_CODE) return { valid: true, role: "admin" };
+  const temp = tempCodes.get(code);
+  if (!temp) return { valid: false, role: null };
+  if (!temp.claimedBy && Date.now() - temp.createdAt > temp.ttl) {
+    tempCodes.delete(code);
+    return { valid: false, role: null };
+  }
+  return { valid: true, role: "temp" };
+}
+
+function claimCode(code: string, clientId: string): boolean {
+  const temp = tempCodes.get(code);
+  if (!temp) return false;
+  if (temp.claimedBy === null) {
+    temp.claimedBy = clientId;
+    log("info", "auth", `Code ${code} réclamé par ${clientId} (à vie)`);
+    return true;
+  }
+  return temp.claimedBy === clientId;
+}
+
+function extractCode(req: Request, url: URL): string {
+  const authHeader = req.headers.get("Authorization");
+  if (authHeader?.startsWith("Bearer ")) return authHeader.slice(7);
+  return url.searchParams.get("code") || "";
+}
+
+const whitelistedClients = new Set<string>();
 
 // ─── Types ──────────────────────────────────────────────────
 interface RobloxClient {
@@ -277,20 +348,18 @@ async function handleRequest(req: Request): Promise<Response> {
     }
   }
 
-  // ─── Validation des entrées execute_code ───
-  // Limite la taille du code Lua (max 50KB) et blacklist les patterns dangereux
-  const MAX_CODE_SIZE = 50 * 1024; // 50KB
-  const DANGEROUS_PATTERNS = [
-    "os.execute", "io.popen", "os.exit",
-    "loadstring.*os", "require.*os",
-  ];
+  // ─── Rate limiting sur execute_code (anti-spam, pas anti-contenu) ───
+  // L'IA peut exécuter n'importe quel script — on limite juste la fréquence
+  // pour éviter le spam : max 30 requêtes/min par IP authentifiée
+  const MAX_CODE_SIZE = 100 * 1024; // 100KB max par requête (généreux)
 
   // Register
   if (path === "/api/register" && method === "POST") {
     try {
       const body = await req.json();
+      const clientId = body.clientId || genId();
       const client: RobloxClient = {
-        clientId: body.clientId || genId(),
+        clientId,
         playerName: body.playerName || "Unknown",
         userId: body.userId || 0,
         placeId: body.placeId || 0,
@@ -301,9 +370,21 @@ async function handleRequest(req: Request): Promise<Response> {
         lastHeartbeat: Date.now(),
         supports: body.supports,
       };
+
+      // Claim le code pour ce clientId (usage unique → lié à vie)
+      const code = extractCode(req, url);
+      if (code && code !== ADMIN_CODE) {
+        const claimed = claimCode(code, clientId);
+        if (!claimed) {
+          log("warn", "auth", `Code ${code} déjà réclamé par un autre client — refus`);
+          return jsonResponse({ ok: false, error: "ce code a déjà été utilisé par un autre client" }, 403);
+        }
+      }
+
       clients.set(client.clientId, client);
       commandQueues.set(client.clientId, []);
       results.set(client.clientId, []);
+      whitelistedClients.add(client.clientId);
       log("success", "bridge",
         `Client connecté: ${client.playerName} (${client.clientId}) · ${client.transport} · ${client.executor}`
       );
@@ -381,15 +462,9 @@ async function handleRequest(req: Request): Promise<Response> {
     try {
       const body = await req.json();
       const codeStr = body.code || "";
-      // Validation : limite taille + blacklist
+      // Limite taille uniquement (anti-spam, pas anti-contenu)
       if (codeStr.length > MAX_CODE_SIZE) {
         return jsonResponse({ ok: false, error: `code trop grand (max ${MAX_CODE_SIZE / 1024}KB)` }, 400);
-      }
-      for (const pattern of DANGEROUS_PATTERNS) {
-        if (new RegExp(pattern).test(codeStr)) {
-          log("warn", "security", `Pattern dangereux bloqué: ${pattern}`);
-          return jsonResponse({ ok: false, error: `pattern interdit: ${pattern}` }, 403);
-        }
       }
       const target = body.clientId || getFirstClient();
       if (!target) {
@@ -400,6 +475,44 @@ async function handleRequest(req: Request): Promise<Response> {
     } catch (e: any) {
       return jsonResponse({ ok: false, error: e.message }, 500);
     }
+  }
+
+  // ─── Admin endpoints ───
+  if (path === "/api/auth/temp-code" && method === "POST") {
+    const code = extractCode(req, url);
+    if (code !== ADMIN_CODE) return jsonResponse({ ok: false, error: "admin requis" }, 403);
+    try {
+      const body = await req.json().catch(() => ({}));
+      const duration = Math.min(body.duration || TEMP_CODE_TTL, MAX_TTL);
+      const tempCode = generateTempCode(body.label, duration);
+      log("success", "auth", `Temp code généré: ${tempCode} (TTL ${duration / 1000}s)`);
+      return jsonResponse({ ok: true, code: tempCode, ttl: duration / 1000 });
+    } catch { return jsonResponse({ ok: false }, 400); }
+  }
+
+  if (path === "/api/auth/temp-codes" && method === "GET") {
+    const code = extractCode(req, url);
+    if (code !== ADMIN_CODE) return jsonResponse({ ok: false, error: "admin requis" }, 403);
+    const list = Array.from(tempCodes.entries()).map(([c, v]) => ({
+      code: c, createdAt: v.createdAt, claimed: v.claimedBy !== null,
+      claimedBy: v.claimedBy, label: v.label,
+      expired: !v.claimedBy && Date.now() - v.createdAt > v.ttl,
+    }));
+    return jsonResponse({ ok: true, codes: list });
+  }
+
+  if (path === "/api/auth/revoke" && method === "POST") {
+    const code = extractCode(req, url);
+    if (code !== ADMIN_CODE) return jsonResponse({ ok: false, error: "admin requis" }, 403);
+    try {
+      const body = await req.json();
+      if (tempCodes.has(body.code)) {
+        tempCodes.delete(body.code);
+        log("warn", "auth", `Temp code révoqué: ${body.code}`);
+        return jsonResponse({ ok: true });
+      }
+      return jsonResponse({ ok: false, error: "code introuvable" }, 404);
+    } catch { return jsonResponse({ ok: false }, 400); }
   }
 
   // ─── HTTP direct: list_remotes ───
