@@ -162,10 +162,12 @@ const CORS = {
 };
 
 // ─── Rate limiting serveur MCP ──────────────────────────────
-// 10 tentatives d'auth par IP en 5 min, puis blocage 10 min
-const SERVER_RATE_LIMIT = 10;
-const SERVER_RATE_WINDOW = 5 * 60 * 1000;
-const SERVER_RATE_BLOCK = 10 * 60 * 1000;
+// 50 tentatives d'auth par IP en 10 min, puis blocage 2 min
+// (assoupli — le bridge Roblox ne déclenche plus ce rate limit car
+//  les endpoints /api/register|poll|result|heartbeat sont publics)
+const SERVER_RATE_LIMIT = 50;
+const SERVER_RATE_WINDOW = 10 * 60 * 1000;
+const SERVER_RATE_BLOCK = 2 * 60 * 1000;
 const serverAttempts = new Map<string, { count: number; firstAttempt: number; blockedUntil?: number }>();
 
 function checkServerRateLimit(ip: string): { allowed: boolean; retryAfter?: number } {
@@ -331,7 +333,14 @@ async function handleRequest(req: Request): Promise<Response> {
 
   // ─── Auth middleware pour tout le reste ───
   // Endpoints publics : /, /health, /script.luau, /api/auth/verify
-  const isPublicEndpoint = path === "/" || path === "/health" || path === "/script.luau" || path === "/api/auth/verify";
+  // Endpoints bridge (publics — le bridge Roblox ne peut pas envoyer de header Authorization) :
+  //   /api/register, /api/poll, /api/result, /api/heartbeat
+  // Le claim du code temporaire se fait via le body.code de /api/register (optionnel)
+  const isPublicEndpoint =
+    path === "/" || path === "/health" || path === "/script.luau" ||
+    path === "/api/auth/verify" ||
+    path === "/api/register" || path === "/api/poll" ||
+    path === "/api/result" || path === "/api/heartbeat";
 
   if (!isPublicEndpoint) {
     const ip = getServerIP(req);
@@ -372,12 +381,20 @@ async function handleRequest(req: Request): Promise<Response> {
       };
 
       // Claim le code pour ce clientId (usage unique → lié à vie)
-      const code = extractCode(req, url);
+      // Le code peut venir du body (body.code — envoyé par le bridge via getgenv().PocketMCPCode)
+      // ou d'un header Authorization / ?code= (pour l'admin UI)
+      const code = body.code || extractCode(req, url);
       if (code && code !== ADMIN_CODE) {
-        const claimed = claimCode(code, clientId);
-        if (!claimed) {
-          log("warn", "auth", `Code ${code} déjà réclamé par un autre client — refus`);
-          return jsonResponse({ ok: false, error: "ce code a déjà été utilisé par un autre client" }, 403);
+        // Vérifie que le code existe dans tempCodes avant d'essayer de le claim
+        // (un code bidon ou expiré est juste ignoré — le register réussit quand même)
+        if (tempCodes.has(code)) {
+          const claimed = claimCode(code, clientId);
+          if (!claimed) {
+            log("warn", "auth", `Code ${code} déjà réclamé par un autre client — refus`);
+            return jsonResponse({ ok: false, error: "ce code a déjà été utilisé par un autre client" }, 403);
+          }
+        } else {
+          log("info", "auth", `Code ${code} inconnu — ignoré (register sans claim)`);
         }
       }
 

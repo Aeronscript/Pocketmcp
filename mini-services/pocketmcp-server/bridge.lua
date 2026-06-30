@@ -403,6 +403,9 @@ local function processCommand(cmd)
 end
 
 -- ─── Enregistrement ─────────────────────────────────────────
+-- getgenv().PocketMCPCode est optionnel — si l'utilisateur le fournit
+-- (admin code ou temp code), le serveur le "claim" pour ce clientId.
+-- Sans code, le bridge s'enregistre quand même (accès bridge public).
 local function register()
     local res = post("/api/register", {
         clientId = state.clientId,
@@ -412,6 +415,8 @@ local function register()
         jobId = game.JobId,
         transport = state.transport,
         executor = identifyexecutor and select(1, identifyexecutor()) or "Unknown",
+        -- Code d'accès optionnel (admin ou temp) — claim le code pour ce client
+        code = getgenv().PocketMCPCode or nil,
         supports = {
             decompile = decompile ~= nil,
             drawing = Drawing ~= nil,
