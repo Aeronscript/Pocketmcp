@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 
-const INSTALL_ONE_LINE = `bash <(curl -fsSL https://pmcp.space-z.ai/api/install.sh)`;
+const INSTALL_ONE_LINE = `bash <(curl -fsSL https://pmcp.space-z.ai/api/install.sh?code=VOTRE_CODE_SITE)`;
 
 const STEPS = [
   {
@@ -11,18 +11,18 @@ const STEPS = [
     title: "installer via termux",
     subtitle: "1 commande",
     code: `# prérequis : termux installé (depuis f-droid)
-# ouvrez termux et collez :
+# ouvrez termux et collez (remplacez VOTRE_CODE_SITE) :
 
-bash <(curl -fsSL https://pmcp.space-z.ai/api/install.sh)
+bash <(curl -fsSL https://pmcp.space-z.ai/api/install.sh?code=VOTRE_CODE_SITE)
 
 # ça installe :
 #   - node 18+ (si manquant)
 #   - bun 1.3+ (si manquant)
-#   - clone le repo pocketmcp
-#   - bun install (dépendances npm)
+#   - télécharge le serveur depuis pmcp.space-z.ai
+#   - bun install (dépendances)
 #   - configure le PATH dans ~/.bashrc
 # durée typique : 3 à 5 minutes selon votre connexion`,
-    note: "nécessite termux depuis f-droid (pas le play store, qui est obsolète). connexion internet requise pendant l'install.",
+    note: "VOTRE_CODE_SITE = le code qui vous a été donné (ex: pmcp_xxx). sans code valide, l'installation est refusée (403). nécessite termux depuis f-droid.",
   },
   {
     id: 2,

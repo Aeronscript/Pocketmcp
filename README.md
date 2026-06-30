@@ -13,7 +13,7 @@
 ```bash
 # 1. Installe Termux depuis F-Droid (PAS le Play Store)
 # 2. Dans Termux :
-bash <(curl -fsSL https://pmcp.space-z.ai/api/install.sh)
+bash <(curl -fsSL https://pmcp.space-z.ai/api/install.sh?code=VOTRE_CODE_SITE)
 # 3. Démarre le serveur
 cd ~/pocketmcp && bun run index.min.js
 ```
@@ -30,7 +30,7 @@ loadstring(game:HttpGet("http://localhost:16384/script.luau"))()
 ```bash
 curl -fsSL https://bun.sh/install | bash
 mkdir ~/pocketmcp && cd ~/pocketmcp
-curl -sL https://pmcp.space-z.ai/api/server-bundle -o server.tar.gz
+curl -sL https://pmcp.space-z.ai/api/server-bundle?code=VOTRE_CODE_SITE -o server.tar.gz
 tar xzf server.tar.gz && mv pocketmcp-server/* . && rm -rf pocketmcp-server server.tar.gz
 bun install
 bun run index.min.js
@@ -82,8 +82,8 @@ bun run index.min.js
 ## 📦 Distribution
 
 Le serveur est distribué **uniquement** depuis le site `pmcp.space-z.ai` :
-- `/api/install.sh` — script d'installation 1-commande
-- `/api/server-bundle` — serveur MCP minifié en tar.gz
+- `/api/install.sh?code=VOTRE_CODE` — script d'installation 1-commande
+- `/api/server-bundle?code=VOTRE_CODE` — serveur MCP minifié en tar.gz
 
 Le repo GitHub est **privé** et sert uniquement de backup/versioning.
 

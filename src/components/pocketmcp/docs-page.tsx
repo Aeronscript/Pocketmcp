@@ -527,16 +527,18 @@ pkg install curl`} />
 
       <H2>étape 2 — installer pocketmcp</H2>
       <P>
-        une seule commande. le script installe node.js et bun si manquants,
-        clone le repo, installe les dépendances npm, et configure le PATH.
+        une seule commande. remplacez <Code>VOTRE_CODE_SITE</Code> par le code
+        qui vous a été donné (ex: <Code>pmcp_xxx</Code>). sans code valide,
+        l'installation est refusée.
       </P>
-      <CodeBlock lang="bash" code={`bash <(curl -fsSL https://pmcp.space-z.ai/api/install.sh)
+      <CodeBlock lang="bash" code={`# remplacez VOTRE_CODE_SITE par votre code (ex: pmcp_xxx)
+bash <(curl -fsSL https://pmcp.space-z.ai/api/install.sh?code=VOTRE_CODE_SITE)
 
 # ça installe :
 #   - node 18+ (si manquant)
 #   - bun 1.3+ (si manquant)
-#   - clone le repo dans ~/pocketmcp
-#   - bun install (dépendances npm)
+#   - télécharge le serveur depuis pmcp.space-z.ai
+#   - bun install (dépendances)
 #   - configure le PATH dans ~/.bashrc
 # durée typique : 3 à 5 minutes selon votre connexion`} />
       <Callout type="info" title="si bun install échoue">
@@ -601,15 +603,15 @@ loadstring(game:HttpGet("http://localhost:16384/script.luau"))()`} />
       <H2>installation sur pc (windows / mac / linux)</H2>
       <P>
         pocketmcp marche aussi sur pc. pas besoin de termux — téléchargez le serveur
-        depuis le site, installez node.js 18+ et bun.
+        depuis le site avec votre code, installez node.js 18+ et bun.
       </P>
       <CodeBlock lang="bash" code={`# 1. installez node.js 18+ depuis nodejs.org (si manquant)
 # 2. installez bun :
 curl -fsSL https://bun.sh/install | bash
 
-# 3. téléchargez le serveur depuis le site :
+# 3. téléchargez le serveur (remplacez VOTRE_CODE_SITE) :
 mkdir ~/pocketmcp && cd ~/pocketmcp
-curl -sL https://pmcp.space-z.ai/api/server-bundle -o server.tar.gz
+curl -sL "https://pmcp.space-z.ai/api/server-bundle?code=VOTRE_CODE_SITE" -o server.tar.gz
 tar xzf server.tar.gz && mv pocketmcp-server/* . && rm -rf pocketmcp-server server.tar.gz
 
 # 4. installez les dépendances et démarrez :
