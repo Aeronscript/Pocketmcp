@@ -83,11 +83,59 @@ function genId(): string {
   return "cmd_" + Math.random().toString(36).slice(2, 10);
 }
 
+// CORS restreint à localhost uniquement (pas *)
 const CORS = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": "http://localhost:16384, http://127.0.0.1:16384",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Accept, MCP-Session-Id",
+  "Access-Control-Allow-Headers": "Content-Type, Accept, MCP-Session-Id, Authorization",
 };
+
+// ─── Rate limiting serveur MCP ──────────────────────────────
+// 10 tentatives d'auth par IP en 5 min, puis blocage 10 min
+const SERVER_RATE_LIMIT = 10;
+const SERVER_RATE_WINDOW = 5 * 60 * 1000;
+const SERVER_RATE_BLOCK = 10 * 60 * 1000;
+const serverAttempts = new Map<string, { count: number; firstAttempt: number; blockedUntil?: number }>();
+
+function checkServerRateLimit(ip: string): { allowed: boolean; retryAfter?: number } {
+  const now = Date.now();
+  const record = serverAttempts.get(ip);
+
+  if (record?.blockedUntil && now < record.blockedUntil) {
+    return { allowed: false, retryAfter: Math.ceil((record.blockedUntil - now) / 1000) };
+  }
+
+  if (record?.blockedUntil && now >= record.blockedUntil) {
+    serverAttempts.delete(ip);
+  }
+
+  if (!record || now - record.firstAttempt > SERVER_RATE_WINDOW) {
+    serverAttempts.set(ip, { count: 1, firstAttempt: now });
+    return { allowed: true };
+  }
+
+  record.count++;
+  if (record.count > SERVER_RATE_LIMIT) {
+    record.blockedUntil = now + SERVER_RATE_BLOCK;
+    return { allowed: false, retryAfter: Math.ceil(SERVER_RATE_BLOCK / 1000) };
+  }
+
+  return { allowed: true };
+}
+
+function getServerIP(req: Request): string {
+  const fwd = req.headers.get("x-forwarded-for");
+  if (fwd) return fwd.split(",")[0].trim();
+  return req.headers.get("x-real-ip") || "127.0.0.1";
+}
+
+// Cleanup toutes les 10 min
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, r] of serverAttempts) {
+    if (now - r.firstAttempt > SERVER_RATE_BLOCK * 2) serverAttempts.delete(ip);
+  }
+}, 10 * 60 * 1000);
 
 function jsonResponse(data: any, status = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -190,6 +238,53 @@ async function handleRequest(req: Request): Promise<Response> {
     });
   }
 
+  // ─── Auth verification endpoint (avec rate limiting) ───
+  if (path === "/api/auth/verify" && method === "POST") {
+    const ip = getServerIP(req);
+    const rateCheck = checkServerRateLimit(ip);
+    if (!rateCheck.allowed) {
+      return jsonResponse({ ok: false, error: `trop de tentatives — réessayez dans ${Math.ceil((rateCheck.retryAfter || 600) / 60)} min` }, 429);
+    }
+    try {
+      const body = await req.json();
+      const code = body.code || "";
+      const check = isValidCode(code);
+      if (check.valid) {
+        return jsonResponse({ ok: true, role: check.role });
+      }
+      return jsonResponse({ ok: false, error: "code invalide" }, 401);
+    } catch {
+      return jsonResponse({ ok: false, error: "requête invalide" }, 400);
+    }
+  }
+
+  // ─── Auth middleware pour tout le reste ───
+  // Endpoints publics : /, /health, /script.luau, /api/auth/verify
+  const isPublicEndpoint = path === "/" || path === "/health" || path === "/script.luau" || path === "/api/auth/verify";
+
+  if (!isPublicEndpoint) {
+    const ip = getServerIP(req);
+    const code = extractCode(req, url);
+    const check = isValidCode(code);
+    if (!check.valid) {
+      // Rate limit sur les échecs d'auth
+      const rateCheck = checkServerRateLimit(ip);
+      if (!rateCheck.allowed) {
+        return jsonResponse({ ok: false, error: `trop de tentatives — bloqué ${Math.ceil((rateCheck.retryAfter || 600) / 60)} min` }, 429);
+      }
+      log("warn", "auth", `Accès refusé: ${method} ${path} depuis ${ip}`);
+      return jsonResponse({ ok: false, error: "authentification requise" }, 401);
+    }
+  }
+
+  // ─── Validation des entrées execute_code ───
+  // Limite la taille du code Lua (max 50KB) et blacklist les patterns dangereux
+  const MAX_CODE_SIZE = 50 * 1024; // 50KB
+  const DANGEROUS_PATTERNS = [
+    "os.execute", "io.popen", "os.exit",
+    "loadstring.*os", "require.*os",
+  ];
+
   // Register
   if (path === "/api/register" && method === "POST") {
     try {
@@ -285,11 +380,22 @@ async function handleRequest(req: Request): Promise<Response> {
   if (path === "/api/execute" && method === "POST") {
     try {
       const body = await req.json();
+      const codeStr = body.code || "";
+      // Validation : limite taille + blacklist
+      if (codeStr.length > MAX_CODE_SIZE) {
+        return jsonResponse({ ok: false, error: `code trop grand (max ${MAX_CODE_SIZE / 1024}KB)` }, 400);
+      }
+      for (const pattern of DANGEROUS_PATTERNS) {
+        if (new RegExp(pattern).test(codeStr)) {
+          log("warn", "security", `Pattern dangereux bloqué: ${pattern}`);
+          return jsonResponse({ ok: false, error: `pattern interdit: ${pattern}` }, 403);
+        }
+      }
       const target = body.clientId || getFirstClient();
       if (!target) {
         return jsonResponse({ ok: false, error: "Aucun client connecté" }, 400);
       }
-      const r = await sendCommand(target, { type: "execute", code: body.code });
+      const r = await sendCommand(target, { type: "execute", code: codeStr });
       return jsonResponse({ ok: r.ok, result: r });
     } catch (e: any) {
       return jsonResponse({ ok: false, error: e.message }, 500);
