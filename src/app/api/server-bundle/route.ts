@@ -1,25 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readFileSync, readdirSync } from "fs";
+import { readFileSync, readdirSync, existsSync } from "fs";
 import { join } from "path";
+import { createHash } from "crypto";
 
-// GET /api/server-bundle
-// Sert le serveur MCP minifié en tar.gz
-// URL: https://pmcp.space-z.ai/api/server-bundle
+// GET /api/server-bundle?code=xxx
+// Protégé : nécessite un code valide
 
+const DATA_FILE = join(process.cwd(), "data", "auth-codes.json");
 const SERVER_DIR = join(process.cwd(), "mini-services", "pocketmcp-server");
 
-const ALLOWED_FILES = [
-  "index.min.js",
-  "bridge.lua",
-  "package.json",
-];
+function hashCode(code: string): string {
+  return createHash("sha256").update(code).digest("hex");
+}
 
-export async function GET() {
+function isValidCode(code: string): boolean {
+  if (!code) return false;
+  try {
+    if (!existsSync(DATA_FILE)) return false;
+    const data = JSON.parse(readFileSync(DATA_FILE, "utf-8"));
+    if (hashCode(code) === data.adminHash) return true;
+    const temp = (data.tempCodes || []).find((t: any) => t.code === code && t.claimed);
+    return !!temp;
+  } catch { return false; }
+}
+
+const ALLOWED_FILES = ["index.min.js", "bridge.lua", "package.json"];
+
+export async function GET(req: NextRequest) {
+  const url = new URL(req.url);
+  const code = url.searchParams.get("code") || req.headers.get("Authorization")?.replace("Bearer ", "") || "";
+  if (!isValidCode(code)) {
+    return NextResponse.json({ ok: false, error: "code d'accès requis" }, { status: 403 });
+  }
+
   try {
     let entries;
-    try {
-      entries = readdirSync(SERVER_DIR);
-    } catch {
+    try { entries = readdirSync(SERVER_DIR); } catch {
       return NextResponse.json({ error: "serveur introuvable" }, { status: 500 });
     }
 

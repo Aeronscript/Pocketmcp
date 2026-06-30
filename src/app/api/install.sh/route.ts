@@ -1,19 +1,37 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { readFileSync, existsSync } from "fs";
+import { join } from "path";
+import { createHash } from "crypto";
 
-// GET /api/install.sh
-// Sert le script d'installation Termux
-// Télécharge le serveur MCP depuis le site (pas besoin de GitHub)
-// URL: https://pmcp.space-z.ai/api/install.sh
-// Usage: bash <(curl -fsSL https://pmcp.space-z.ai/api/install.sh)
+// GET /api/install.sh?code=xxx
+// Protégé : nécessite un code valide (admin ou temporaire)
+
+const DATA_FILE = join(process.cwd(), "data", "auth-codes.json");
+
+interface AuthData { adminHash: string; tempCodes: any[]; }
+
+function hashCode(code: string): string {
+  return createHash("sha256").update(code).digest("hex");
+}
+
+function loadAuth(): AuthData {
+  try { if (existsSync(DATA_FILE)) return JSON.parse(readFileSync(DATA_FILE, "utf-8")); } catch {}
+  return { adminHash: "", tempCodes: [] };
+}
+
+function isValidCode(code: string): boolean {
+  if (!code) return false;
+  const data = loadAuth();
+  if (hashCode(code) === data.adminHash) return true;
+  const temp = (data.tempCodes || []).find((t: any) => t.code === code && t.claimed);
+  return !!temp;
+}
 
 const INSTALL_SCRIPT = `#!/data/data/com.termux/files/usr/bin/bash
 # ════════════════════════════════════════════════════════════
 # PocketMCP — Install 1-commande pour Termux
 # Auteur: Aeronscript (Mohamed Amine)
-# Usage:  bash <(curl -fsSL https://pmcp.space-z.ai/api/install.sh)
-#
 # Le serveur est téléchargé depuis pmcp.space-z.ai
-# Le repo GitHub reste privé — pas besoin d'accès GitHub
 # ════════════════════════════════════════════════════════════
 
 set -e
@@ -26,7 +44,7 @@ NC='\\033[0m'
 
 SITE_URL="https://pmcp.space-z.ai"
 INSTALL_DIR="$HOME/pocketmcp"
-BUNDLE_URL="$SITE_URL/api/server-bundle"
+BUNDLE_URL="$SITE_URL/api/server-bundle?code=USER_CODE"
 
 echo -e "\${CYAN}═══════════════════════════════════════════════════\${NC}"
 echo -e "\${CYAN}  pocketmcp · install depuis pmcp.space-z.ai\${NC}"
@@ -34,30 +52,24 @@ echo -e "\${CYAN}  by aeronscript (mohamed amine)\${NC}"
 echo -e "\${CYAN}═══════════════════════════════════════════════════\${NC}"
 echo ""
 
-# Vérifier Termux
 if [ ! -d "/data/data/com.termux" ]; then
   echo -e "\${RED}✗ Ce script doit être lancé dans Termux (Android)\${NC}"
-  echo -e "\${YELLOW}  installe termux depuis f-droid.org\${NC}"
   exit 1
 fi
 
-# 1. Mise à jour système
 echo -e "\${YELLOW}[1/7] mise à jour termux...\${NC}"
 pkg update -y >/dev/null 2>&1 && pkg upgrade -y >/dev/null 2>&1
 
-# 2. Dépendances système
 echo -e "\${YELLOW}[2/7] installation node + curl + tar...\${NC}"
 pkg install -y nodejs curl tar >/dev/null 2>&1
 
-# Vérifier Node
 NODE_MAJOR=$(node -v 2>/dev/null | sed 's/v//' | cut -d. -f1)
 if [ -z "$NODE_MAJOR" ] || [ "$NODE_MAJOR" -lt 18 ]; then
-  echo -e "\${RED}✗ Node.js ≥ 18 requis (actuel: $(node -v 2>/dev/null || 'none'))\${NC}"
+  echo -e "\${RED}✗ Node.js ≥ 18 requis\${NC}"
   exit 1
 fi
 echo -e "\${GREEN}  ✓ Node.js $(node -v)\${NC}"
 
-# 3. Installer Bun
 echo -e "\${YELLOW}[3/7] installation bun...\${NC}"
 if ! command -v bun &> /dev/null; then
   curl -fsSL https://bun.sh/install | bash >/dev/null 2>&1
@@ -68,61 +80,40 @@ if ! command -v bun &> /dev/null; then
 fi
 echo -e "\${GREEN}  ✓ Bun $(bun --version)\${NC}"
 
-# 4. Télécharger le serveur depuis le site
-echo -e "\${YELLOW}[4/7] téléchargement du serveur depuis pmcp.space-z.ai...\${NC}"
-
-# Nettoyer ancienne install
+echo -e "\${YELLOW}[4/7] téléchargement du serveur...\${NC}"
 rm -rf "$INSTALL_DIR" 2>/dev/null
 mkdir -p "$INSTALL_DIR"
 
-# Télécharger le bundle
 TMP_FILE="/tmp/pocketmcp-server.tar.gz"
 HTTP_CODE=$(curl -sL -w "%{http_code}" -o "$TMP_FILE" "$BUNDLE_URL" 2>/dev/null)
 
 if [ "$HTTP_CODE" != "200" ] || [ ! -s "$TMP_FILE" ]; then
   echo -e "\${RED}✗ échec téléchargement (HTTP $HTTP_CODE)\${NC}"
-  echo -e "\${YELLOW}  vérifiez votre connexion internet\${NC}"
   exit 1
 fi
-
 echo -e "\${GREEN}  ✓ bundle téléchargé ($(du -h "$TMP_FILE" | cut -f1))\${NC}"
 
-# 5. Extraire
 echo -e "\${YELLOW}[5/7] extraction...\${NC}"
 cd "$INSTALL_DIR"
 tar xzf "$TMP_FILE" 2>/dev/null
-
-# Les fichiers sont dans pocketmcp-server/, on les déplace
 if [ -d "pocketmcp-server" ]; then
   cp -r pocketmcp-server/* . 2>/dev/null
-  cp pocketmcp-server/.* . 2>/dev/null
   rm -rf pocketmcp-server
 fi
-
 rm -f "$TMP_FILE"
 
-# Vérifier que les fichiers clés sont là
 if [ ! -f "index.min.js" ] || [ ! -f "bridge.lua" ]; then
-  echo -e "\${RED}✗ fichiers serveur manquants après extraction\${NC}"
-  ls -la
+  echo -e "\${RED}✗ fichiers serveur manquants\${NC}"
   exit 1
 fi
-echo -e "\${GREEN}  ✓ fichiers extraits (index.min.js + bridge.lua + package.json)\${NC}"
+echo -e "\${GREEN}  ✓ fichiers extraits\${NC}"
 
-# 6. Installer les dépendances
-echo -e "\${YELLOW}[6/7] installation des dépendances (bun install)...\${NC}"
+echo -e "\${YELLOW}[6/7] installation des dépendances...\${NC}"
 if [ -f "package.json" ]; then
   bun install 2>&1 | tail -1
-  if [ $? -ne 0 ]; then
-    echo -e "\${RED}  ✗ échec bun install — essayez: cd ~/pocketmcp && bun install\${NC}"
-    exit 1
-  fi
   echo -e "\${GREEN}  ✓ dépendances installées\${NC}"
-else
-  echo -e "\${YELLOW}  ⚠ package.json introuvable — skipped\${NC}"
 fi
 
-# 7. Vérification finale
 echo -e "\${YELLOW}[7/7] vérification finale...\${NC}"
 echo ""
 echo -e "\${GREEN}═══════════════════════════════════════════════════\${NC}"
@@ -132,22 +123,14 @@ echo ""
 echo -e "\${CYAN}pour démarrer le serveur:\${NC}"
 echo -e "  \${GREEN}cd ~/pocketmcp && bun run index.min.js\${NC}"
 echo ""
-echo -e "\${CYAN}le serveur affichera votre code d'auth:\${NC}"
-echo -e "  \${GREEN}getgenv().PocketMCPCode = \\"adm_xxxx\\"\${NC}"
+echo -e "\${CYAN}le serveur affichera votre code d'auth (adm_xxx)\${NC}"
 echo ""
-echo -e "\${CYAN}puis dans roblox (delta/hydrogen), colle:\${NC}"
+echo -e "\${CYAN}puis dans roblox:\${NC}"
 echo -e "  \${GREEN}getgenv().PocketMCPCode = \\"VOTRE_CODE\\"\${NC}"
 echo -e "  \${GREEN}loadstring(game:HttpGet(\\"http://localhost:16384/script.luau\\"))()\${NC}"
 echo ""
 echo -e "\${CYAN}dashboard:\${NC}"
 echo -e "  \${GREEN}http://localhost:16384\${NC}"
-echo ""
-echo -e "\${CYAN}config ton client IA (opencode/codex) avec:\${NC}"
-echo -e "  \${GREEN}url: http://localhost:16384/mcp\${NC}"
-echo -e "  \${GREEN}transport: http\${NC}"
-echo ""
-echo -e "\${CYAN}site officiel:\${NC}"
-echo -e "  \${GREEN}$SITE_URL\${NC}"
 echo ""
 echo -e "\${YELLOW}⚠ garde termux ouvert. utilise tmux pour le background.\${NC}"
 echo -e "\${YELLOW}⚠ risque de ban roblox. compte secondaire recommandé.\${NC}"
@@ -156,8 +139,17 @@ echo -e "\${CYAN}by aeronscript (mohamed amine) · v0.3.0\${NC}"
 echo ""
 `;
 
-export async function GET() {
-  return new NextResponse(INSTALL_SCRIPT, {
+export async function GET(req: NextRequest) {
+  const url = new URL(req.url);
+  const code = url.searchParams.get("code") || req.headers.get("Authorization")?.replace("Bearer ", "") || "";
+  if (!isValidCode(code)) {
+    return NextResponse.json(
+      { ok: false, error: "code d'accès requis — usage: bash <(curl -fsSL https://pmcp.space-z.ai/api/install.sh?code=VOTRE_CODE)" },
+      { status: 403 }
+    );
+  }
+  const script = INSTALL_SCRIPT.replace(/USER_CODE/g, code);
+  return new NextResponse(script, {
     status: 200,
     headers: {
       "Content-Type": "text/x-shellscript; charset=utf-8",
