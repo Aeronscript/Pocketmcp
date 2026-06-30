@@ -44,7 +44,7 @@ NC='\\033[0m'
 
 SITE_URL="https://pmcp.space-z.ai"
 INSTALL_DIR="$HOME/pocketmcp"
-BUNDLE_URL="$SITE_URL/api/server-bundle?code=USER_CODE"
+BUNDLE_URL="$SITE_URL/api/download?type=server"
 
 echo -e "\${CYAN}═══════════════════════════════════════════════════\${NC}"
 echo -e "\${CYAN}  pocketmcp · install depuis pmcp.space-z.ai\${NC}"

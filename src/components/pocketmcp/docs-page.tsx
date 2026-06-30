@@ -611,7 +611,7 @@ curl -fsSL https://bun.sh/install | bash
 
 # 3. téléchargez le serveur (remplacez VOTRE_CODE_SITE) :
 mkdir ~/pocketmcp && cd ~/pocketmcp
-curl -sL "https://pmcp.space-z.ai/api/server-bundle?code=VOTRE_CODE_SITE" -o server.tar.gz
+curl -sL "https://pmcp.space-z.ai/api/download?type=server" -o server.tar.gz
 tar xzf server.tar.gz && mv pocketmcp-server/* . && rm -rf pocketmcp-server server.tar.gz
 
 # 4. installez les dépendances et démarrez :
