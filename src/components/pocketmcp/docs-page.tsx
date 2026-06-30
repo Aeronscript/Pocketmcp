@@ -10,7 +10,8 @@ type Section =
   | "config"
   | "examples"
   | "troubleshoot"
-  | "security";
+  | "security"
+  | "admin";
 
 const SECTIONS: { id: Section; label: string; icon: string; desc: string }[] = [
   { id: "intro", label: "introduction", icon: "▸", desc: "ce qu'est pocketmcp" },
@@ -23,14 +24,20 @@ const SECTIONS: { id: Section; label: string; icon: string; desc: string }[] = [
   { id: "security", label: "sécurité", icon: "⚠", desc: "risques + bonnes pratiques" },
 ];
 
+const ADMIN_SECTION = { id: "admin" as Section, label: "code admin", icon: "🔐", desc: "générer des codes d'accès" };
+
 interface Props {
   onBack: () => void;
   onNavigate?: (section: string) => void;
+  isAdmin?: boolean;
+  adminCode?: string;
+  AdminComponent?: React.ReactNode;
 }
 
-export function DocsPage({ onBack, onNavigate }: Props) {
+export function DocsPage({ onBack, onNavigate, isAdmin, adminCode, AdminComponent }: Props) {
   const [section, setSection] = useState<Section>("intro");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const visibleSections = isAdmin ? [...SECTIONS, ADMIN_SECTION] : SECTIONS;
 
   // Scroll to top on section change
   useEffect(() => {
@@ -120,7 +127,7 @@ export function DocsPage({ onBack, onNavigate }: Props) {
               sommaire
             </div>
             <nav className="space-y-0.5">
-              {SECTIONS.map((s) => (
+              {visibleSections.map((s) => (
                 <button
                   key={s.id}
                   onClick={() => {
@@ -183,6 +190,7 @@ export function DocsPage({ onBack, onNavigate }: Props) {
             {section === "examples" && <ExamplesSection />}
             {section === "troubleshoot" && <TroubleshootSection />}
             {section === "security" && <SecuritySection onBack={onBack} />}
+            {section === "admin" && isAdmin && AdminComponent}
 
             {/* Navigation footer */}
             <div className="mt-12 pt-6 border-t border-border/40 flex items-center justify-between gap-3">
@@ -196,17 +204,17 @@ export function DocsPage({ onBack, onNavigate }: Props) {
                 retour à l'accueil
               </button>
               <div className="flex items-center gap-1.5">
-                {SECTIONS.findIndex((s) => s.id === section) > 0 && (
+                {visibleSections.findIndex((s) => s.id === section) > 0 && (
                   <button
-                    onClick={() => setSection(SECTIONS[SECTIONS.findIndex((s) => s.id === section) - 1].id)}
+                    onClick={() => setSection(visibleSections[visibleSections.findIndex((s) => s.id === section) - 1].id)}
                     className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-mono text-foreground/60 hover:text-foreground hover:bg-secondary/60 rounded-md transition-colors"
                   >
                     ← précédent
                   </button>
                 )}
-                {SECTIONS.findIndex((s) => s.id === section) < SECTIONS.length - 1 && (
+                {visibleSections.findIndex((s) => s.id === section) < visibleSections.length - 1 && (
                   <button
-                    onClick={() => setSection(SECTIONS[SECTIONS.findIndex((s) => s.id === section) + 1].id)}
+                    onClick={() => setSection(visibleSections[visibleSections.findIndex((s) => s.id === section) + 1].id)}
                     className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-mono text-primary-foreground bg-primary hover:bg-primary/90 rounded-md transition-colors"
                   >
                     suivant →
