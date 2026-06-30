@@ -132,7 +132,7 @@ export function Footer() {
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
                 <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
               </span>
-              v0.3.0 · mit license
+              v0.3.0 · all rights reserved
             </span>
           </div>
         </div>
