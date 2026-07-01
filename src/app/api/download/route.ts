@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readFileSync, readdirSync, existsSync } from "fs";
 import { join } from "path";
+import { gzipSync } from "zlib";
 
 const FILES: Record<string, { path: string; contentType: string; filename: string }> = {
   setup: {
@@ -64,7 +65,6 @@ export async function GET(req: NextRequest) {
 
       chunks.push(Buffer.alloc(1024, 0));
       const tarBuffer = Buffer.concat(chunks);
-      const { gzipSync } = require("zlib");
       const gzBuffer = gzipSync(tarBuffer);
 
       return new NextResponse(gzBuffer, {
