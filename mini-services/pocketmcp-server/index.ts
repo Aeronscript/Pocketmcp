@@ -562,6 +562,80 @@ async function handleRequest(req: Request): Promise<Response> {
     return jsonResponse(r);
   }
 
+  // ─── HTTP direct: analyze_game ───
+  if (path === "/api/analyze" && method === "POST") {
+    try {
+      const body = await req.json();
+      const target = body.clientId || getFirstClient();
+      if (!target) return jsonResponse({ ok: false, error: "Aucun client" }, 400);
+      // analyze_game peut prendre du temps (jusqu'à 60s en mode full)
+      const r = await sendCommand(target, {
+        type: "analyze_game",
+        mode: body.mode || "full",
+        scope: body.scope || "all",
+        pattern: body.pattern,
+        dynamicDuration: body.dynamicDuration || 10,
+        interactGui: body.interactGui === true,
+      }, 120000);
+      return jsonResponse(r);
+    } catch (e: any) {
+      return jsonResponse({ ok: false, error: e.message }, 500);
+    }
+  }
+
+  // ─── HTTP direct: find_gamepass_logic ───
+  if (path === "/api/find-gamepass" && method === "POST") {
+    try {
+      const body = await req.json();
+      const target = body.clientId || getFirstClient();
+      if (!target) return jsonResponse({ ok: false, error: "Aucun client" }, 400);
+      const r = await sendCommand(target, {
+        type: "find_gamepass_logic",
+        gamepassId: body.gamepassId,
+        mode: body.mode || "full",
+        generateBypass: body.generateBypass !== false,
+      }, 120000);
+      return jsonResponse(r);
+    } catch (e: any) {
+      return jsonResponse({ ok: false, error: e.message }, 500);
+    }
+  }
+
+  // ─── HTTP direct: stealth_setup ───
+  if (path === "/api/stealth" && method === "POST") {
+    try {
+      const body = await req.json();
+      const target = body.clientId || getFirstClient();
+      if (!target) return jsonResponse({ ok: false, error: "Aucun client" }, 400);
+      const r = await sendCommand(target, {
+        type: "stealth_setup",
+        action: body.action || "enable",
+        features: body.features || ["kick", "metatable", "speed", "detect"],
+      }, 15000);
+      return jsonResponse(r);
+    } catch (e: any) {
+      return jsonResponse({ ok: false, error: e.message }, 500);
+    }
+  }
+
+  // ─── HTTP direct: player_control ───
+  if (path === "/api/control" && method === "POST") {
+    try {
+      const body = await req.json();
+      const target = body.clientId || getFirstClient();
+      if (!target) return jsonResponse({ ok: false, error: "Aucun client" }, 400);
+      const r = await sendCommand(target, {
+        type: "player_control",
+        action: body.action || "enable",
+        features: body.features || [],
+        value: body.value,
+      }, 15000);
+      return jsonResponse(r);
+    } catch (e: any) {
+      return jsonResponse({ ok: false, error: e.message }, 500);
+    }
+  }
+
   // ─── MCP endpoint ───
   if (path === "/mcp" && method === "POST") {
     return await handleMCP(req);
@@ -709,6 +783,118 @@ const MCP_TOOLS = [
       },
     },
   },
+  {
+    name: "analyze_game",
+    description:
+      "Analyseur profond d'un jeu Roblox. Plus puissant que spy_remotes : combine scan statique (décompile tous les LocalScript/ModuleScript accessibles, cherche patterns remotes/gamepass/anti-cheat/modules) + spy dynamique (hook __namecall pendant N secondes) + liste des boutons GUI cliquables. " +
+      "Modes : 'static' (scan seulement), 'dynamic' (spy seulement), 'full' (les deux). " +
+      "Retourne un rapport consolidé : remotes trouvés, checks gamepass, hints anti-cheat, modules chargés, boutons GUI, events dynamiques observés.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        mode: {
+          type: "string",
+          enum: ["static", "dynamic", "full"],
+          description: "static = scan scripts seulement, dynamic = spy remotes seulement, full = les deux (défaut)",
+        },
+        scope: {
+          type: "string",
+          enum: ["ReplicatedStorage", "StarterGui", "StarterPlayer", "Workspace", "all"],
+          description: "Service(s) à scanner (défaut: all)",
+        },
+        pattern: {
+          type: "string",
+          description: "Filtre optionnel — ne garde que les scripts contenant ce pattern (ex: 'gamepass', 'admin', 'Purchase')",
+        },
+        dynamicDuration: {
+          type: "number",
+          description: "Durée du spy dynamique en secondes (défaut: 10)",
+        },
+        interactGui: {
+          type: "boolean",
+          description: "Si true, clique sur les TextButtons visibles pendant le spy dynamique pour générer du trafic",
+        },
+        clientId: { type: "string" },
+      },
+    },
+  },
+  {
+    name: "find_gamepass_logic",
+    description:
+      "Cherche spécifiquement les checks gamepass (MarketplaceService:UserOwnsGamePassAsync, PromptGamePassPurchase, IDs numériques) dans tous les scripts client-accessibles. " +
+      "Génère automatiquement un snippet Lua de bypass (hookfunction + newcclosure si supporté, sinon mock de table). " +
+      "L'IA peut exécuter le bypass directement via execute_code, l'expliquer à l'utilisateur, ou le modifier. " +
+      "Modes : 'static' (scan scripts), 'dynamic' (spy remotes filtrés purchase/gamepass pendant 8s), 'full' (les deux).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        gamepassId: {
+          type: "number",
+          description: "ID spécifique à chercher (optionnel — si omis, cherche tous les gamepass)",
+        },
+        mode: {
+          type: "string",
+          enum: ["static", "dynamic", "full"],
+          description: "static = scan scripts, dynamic = spy remotes, full = les deux (défaut)",
+        },
+        generateBypass: {
+          type: "boolean",
+          description: "Si true (défaut), génère un snippet Lua de bypass pour chaque check trouvé",
+        },
+        clientId: { type: "string" },
+      },
+    },
+  },
+  {
+    name: "stealth_setup",
+    description:
+      "Active des protections anti-anti-cheat (best-effort, dépend de l'exécuteur). À appeler UNE FOIS au début de session avant d'exécuter du code sensible. " +
+      "Features disponibles : 'kick' (bloque Player:Kick côté client), 'metatable' (cache les hooks metatable), 'speed' (masque les changements WalkSpeed), 'detect' (hook getfenv/getrenv pour masquer l'environnement). " +
+      "Actions : 'enable' (active les features), 'disable' (désactive tout), 'status' (retourne l'état actuel).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          enum: ["enable", "disable", "status"],
+          description: "enable = active (défaut), disable = désactive tout, status = retourne l'état",
+        },
+        features: {
+          type: "array",
+          items: { type: "string", enum: ["kick", "metatable", "speed", "detect"] },
+          description: "Features à activer (défaut: toutes). Ignoré si action=disable/status.",
+        },
+        clientId: { type: "string" },
+      },
+    },
+  },
+  {
+    name: "player_control",
+    description:
+      "Active/désactive des features de contrôle du joueur local. Chaque feature est toggling — l'utilisateur est admin de sa session. " +
+      "Features : 'walkspeed' (set WalkSpeed, value optionnel custom), 'jumppower' (set JumpPower), 'noclip' (désactive collisions), 'teleport' (teleport au clic souris), 'autoclick' (clique tous les boutons GUI visibles en boucle), 'infjump' (jump illimité). " +
+      "Actions : 'enable' (active les features), 'disable' (désactive, restaure WalkSpeed/JumpPower), 'status' (retourne l'état), 'set' (comme enable mais avec valeur custom via 'value').",
+    inputSchema: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          enum: ["enable", "disable", "status", "set"],
+          description: "enable = active, disable = désactive, status = état, set = active avec valeur custom",
+        },
+        features: {
+          type: "array",
+          items: { type: "string", enum: ["walkspeed", "jumppower", "noclip", "teleport", "autoclick", "infjump"] },
+          description: "Features à activer/désactiver",
+        },
+        value: {
+          type: "number",
+          description: "Valeur custom pour walkspeed/jumppower (ex: 100). Optionnel.",
+        },
+        clientId: { type: "string" },
+      },
+    },
+  },
 ];
 
 async function handleMCP(req: Request): Promise<Response> {
@@ -780,6 +966,35 @@ async function handleMCP(req: Request): Promise<Response> {
           }
         } else if (toolName === "get_player_info") {
           cmd = { type: "get_player_info", playerName: args.playerName };
+        } else if (toolName === "analyze_game") {
+          cmd = {
+            type: "analyze_game",
+            mode: args.mode || "full",
+            scope: args.scope || "all",
+            pattern: args.pattern,
+            dynamicDuration: args.dynamicDuration || 10,
+            interactGui: args.interactGui === true,
+          };
+        } else if (toolName === "find_gamepass_logic") {
+          cmd = {
+            type: "find_gamepass_logic",
+            gamepassId: args.gamepassId,
+            mode: args.mode || "full",
+            generateBypass: args.generateBypass !== false,
+          };
+        } else if (toolName === "stealth_setup") {
+          cmd = {
+            type: "stealth_setup",
+            action: args.action || "enable",
+            features: args.features || ["kick", "metatable", "speed", "detect"],
+          };
+        } else if (toolName === "player_control") {
+          cmd = {
+            type: "player_control",
+            action: args.action || "enable",
+            features: args.features || [],
+            value: args.value,
+          };
         } else if (toolName === "list_clients") {
           const now = Date.now();
           const list = Array.from(clients.values())

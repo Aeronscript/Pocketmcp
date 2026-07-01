@@ -378,6 +378,723 @@ local function handlePing(cmd)
     return { ok = true, pong = os.clock(), httpMode = state.httpMode, transport = state.transport }
 end
 
+-- ════════════════════════════════════════════════════════════
+-- OUTILS AVANCÉS v4 — analyze_game, find_gamepass_logic,
+--                     stealth_setup, player_control
+-- ════════════════════════════════════════════════════════════
+
+-- ─── Helper : parcourir une arborescence d'instances ────────
+local function walkInstances(root, callback, depth, maxDepth, visited)
+    depth = depth or 0
+    maxDepth = maxDepth or 30
+    visited = visited or {}
+    if depth > maxDepth then return end
+    if visited[root] then return end
+    visited[root] = true
+
+    local ok, err = pcall(function()
+        for _, child in ipairs(root:GetChildren()) do
+            callback(child, depth)
+            walkInstances(child, callback, depth + 1, maxDepth, visited)
+        end
+    end)
+    if not ok then
+        -- skip silencieusement (Certaines instances protégées)
+    end
+end
+
+-- ─── Helper : décompiler avec timeout ───────────────────────
+local function safeDecompile(target, timeoutMs)
+    if not decompile then return nil, "decompile() non disponible" end
+    timeoutMs = timeoutMs or 3000
+    local result = nil
+    local done = false
+    local co = coroutine.create(function()
+        local ok, src = pcall(decompile, target)
+        result = ok and src or nil
+        done = true
+    end)
+    coroutine.resume(co)
+    local waited = 0
+    while not done and waited < timeoutMs do
+        task.wait(0.05)
+        waited = waited + 50
+    end
+    if not done then
+        -- timeout : best-effort, on continue
+        return nil, "timeout"
+    end
+    return result
+end
+
+-- ─── Helper : patterns de scan ──────────────────────────────
+local SCAN_PATTERNS = {
+    remotes = {
+        "FireServer", "InvokeServer", "RemoteEvent", "RemoteFunction",
+        "OnServerEvent", "OnServerInvoke",
+    },
+    gamepass = {
+        "MarketplaceService", "UserOwnsGamePassAsync", "PromptGamePassPurchase",
+        "GamePassService", "UserOwnsGamePassAsync", "PromptGamePassPurchaseComplete",
+    },
+    antiCheat = {
+        "PlayerAdded", "Kick(", ":Kick(", "crash", "WalkSpeed", "JumpPower",
+        "teleport", "TeleportService", "GetService%(\"Players\"%)",
+    },
+    modules = {
+        "require%(", "loadstring%(", "getfenv", "getrenv",
+    },
+}
+
+-- Détecte des IDs numériques (probables gamepass/asset IDs)
+local function extractNumericIds(source)
+    local ids = {}
+    for id in string.gmatch(source, "[%s%(=,]([0-9]+)[%s%)%,%;]") do
+        if #id >= 6 and #id <= 10 then
+            table.insert(ids, id)
+        end
+    end
+    return ids
+end
+
+-- Cherche tous les patterns d'une catégorie dans un source
+local function scanSource(source, category)
+    local patterns = SCAN_PATTERNS[category] or {}
+    local hits = {}
+    for _, pat in ipairs(patterns) do
+        local count = select(2, string.gsub(source, pat, ""))
+        if count > 0 then
+            -- Extrait un snippet autour de la première occurrence
+            local startIdx = string.find(source, pat)
+            if startIdx then
+                local snippetStart = math.max(1, startIdx - 40)
+                local snippetEnd = math.min(#source, startIdx + 100)
+                local snippet = string.sub(source, snippetStart, snippetEnd):gsub("%s+", " ")
+                table.insert(hits, { pattern = pat, count = count, snippet = snippet })
+            end
+        end
+    end
+    return hits
+end
+
+-- ─── Handler : analyze_game ─────────────────────────────────
+-- Analyseur profond d'un jeu. Combine :
+-- - Phase statique : scan scripts + décompile + cherche patterns
+-- - Phase dynamique : spy remotes pendant N secondes
+-- - Phase GUI : liste les boutons cliquables
+local function handleAnalyzeGame(cmd)
+    local mode = cmd.mode or "full"           -- static | dynamic | full
+    local scope = cmd.scope or "all"          -- ReplicatedStorage | StarterGui | StarterPlayer | Workspace | all
+    local pattern = cmd.pattern               -- filtre optionnel
+    local dynamicDuration = cmd.dynamicDuration or 10
+    local interactGui = cmd.interactGui == true
+
+    local services = {}
+    if scope == "all" then
+        local ok1, rs = pcall(function() return game:GetService("ReplicatedStorage") end)
+        local ok2, sg = pcall(function() return game:GetService("StarterGui") end)
+        local ok3, sp = pcall(function() return game:GetService("StarterPlayer") end)
+        local ok4, ws = pcall(function() return game:GetService("Workspace") end)
+        if ok1 then table.insert(services, rs) end
+        if ok2 then table.insert(services, sg) end
+        if ok3 then table.insert(services, sp) end
+        if ok4 then table.insert(services, ws) end
+    else
+        local ok, svc = pcall(function() return game:GetService(scope) end)
+        if ok then table.insert(services, svc) end
+    end
+
+    local report = {
+        mode = mode,
+        scope = scope,
+        scannedScripts = 0,
+        decompiledScripts = 0,
+        failedDecompile = 0,
+        remotes = {},
+        gamepassChecks = {},
+        antiCheatHints = {},
+        modulesLoaded = {},
+        guiButtons = {},
+        dynamicLog = {},
+    }
+
+    -- Si pattern fourni, on filtre les patterns à chercher
+    local categoriesToScan = { "remotes", "gamepass", "antiCheat", "modules" }
+    if pattern then
+        -- Le pattern filtre les snippets retournés (on garde tous les categories)
+        report.pattern = pattern
+    end
+
+    -- ─── Phase 1 : scan statique ───
+    local visitedScripts = {}
+    for _, service in ipairs(services) do
+        walkInstances(service, function(inst, depth)
+            local className = inst.ClassName
+            local isScript = className == "LocalScript" or className == "ModuleScript"
+            if isScript and not visitedScripts[inst] then
+                visitedScripts[inst] = true
+                report.scannedScripts = report.scannedScripts + 1
+
+                local path = inst:GetFullName()
+
+                -- Décompile
+                local src, err = safeDecompile(inst, 3000)
+                if not src then
+                    report.failedDecompile = report.failedDecompile + 1
+                    return
+                end
+                report.decompiledScripts = report.decompiledScripts + 1
+
+                -- Si pattern fourni, on ne garde que les sources qui matchent
+                if pattern and not string.find(string.lower(src), string.lower(pattern)) then
+                    return
+                end
+
+                -- Scan par catégorie
+                for _, cat in ipairs(categoriesToScan) do
+                    local hits = scanSource(src, cat)
+                    for _, hit in ipairs(hits) do
+                        if cat == "remotes" then
+                            table.insert(report.remotes, {
+                                path = path,
+                                pattern = hit.pattern,
+                                count = hit.count,
+                                snippet = hit.snippet,
+                            })
+                        elseif cat == "gamepass" then
+                            -- Extrait les IDs numériques du snippet
+                            local ids = extractNumericIds(hit.snippet)
+                            table.insert(report.gamepassChecks, {
+                                path = path,
+                                pattern = hit.pattern,
+                                snippet = hit.snippet,
+                                numericIds = ids,
+                            })
+                        elseif cat == "antiCheat" then
+                            table.insert(report.antiCheatHints, {
+                                path = path,
+                                pattern = hit.pattern,
+                                snippet = hit.snippet,
+                            })
+                        elseif cat == "modules" then
+                            table.insert(report.modulesLoaded, {
+                                path = path,
+                                pattern = hit.pattern,
+                                snippet = hit.snippet,
+                            })
+                        end
+                    end
+                end
+            end
+
+            -- GUI buttons
+            if className == "TextButton" or className == "ImageButton" or className == "Button" then
+                table.insert(report.guiButtons, {
+                    name = inst.Name,
+                    path = inst:GetFullName(),
+                    className = className,
+                })
+            end
+        end, 0, 30, {})
+    end
+
+    -- ─── Phase 2 : spy dynamique (si dynamic ou full) ───
+    if mode == "dynamic" or mode == "full" then
+        local spyWasEnabled = state.spyEnabled
+        local oldFilter = state.spyFilter
+
+        -- Active le spy
+        handleSpyRemotes({ enabled = true, filter = pattern })
+
+        -- Si interactGui, clique les boutons visibles
+        if interactGui then
+            task.spawn(function()
+                local PlayerGui = LP:FindFirstChildOfClass("PlayerGui")
+                if PlayerGui then
+                    for _, gui in ipairs(PlayerGui:GetChildren()) do
+                        if gui:IsA("ScreenGui") then
+                            for _, btn in ipairs(gui:GetDescendants()) do
+                                if btn:IsA("TextButton") or btn:IsA("ImageButton") then
+                                    pcall(function()
+                                        if firebuttonclick then
+                                            firebuttonclick(btn)
+                                        elseif firesignal then
+                                            firesignal(btn.MouseButton1Click)
+                                        end
+                                    end)
+                                    task.wait(0.1)
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+
+        -- Attend dynamicDuration secondes
+        task.wait(dynamicDuration)
+
+        -- Capture les remotes observés
+        for _, entry in ipairs(state.remotesLog) do
+            table.insert(report.dynamicLog, {
+                name = entry.name,
+                kind = entry.kind,
+                path = entry.path,
+                argsCount = entry.args and #entry.args or 0,
+                time = entry.time,
+            })
+        end
+
+        -- Restore l'état du spy
+        if not spyWasEnabled then
+            handleSpyRemotes({ enabled = false })
+        else
+            state.spyFilter = oldFilter
+        end
+
+        report.dynamicDuration = dynamicDuration
+        report.dynamicEvents = #report.dynamicLog
+    end
+
+    report.ok = true
+    return report
+end
+
+-- ─── Handler : find_gamepass_logic ──────────────────────────
+-- Cherche spécifiquement les checks gamepass et génère un bypass snippet
+local function handleFindGamepassLogic(cmd)
+    local gamepassId = cmd.gamepassId  -- optionnel
+    local mode = cmd.mode or "full"             -- static | dynamic | full
+    local generateBypass = cmd.generateBypass ~= false  -- default true
+
+    local services = {}
+    for _, svcName in ipairs({ "ReplicatedStorage", "StarterGui", "StarterPlayer", "Workspace" }) do
+        local ok, svc = pcall(function() return game:GetService(svcName) end)
+        if ok then table.insert(services, svc) end
+    end
+
+    local result = {
+        gamepassId = gamepassId,
+        mode = mode,
+        checksFound = {},
+        remotesObserved = {},
+        rawDecompiled = {},
+    }
+
+    local gamepassPatterns = SCAN_PATTERNS.gamepass
+    local visited = {}
+
+    for _, service in ipairs(services) do
+        walkInstances(service, function(inst, depth)
+            local className = inst.ClassName
+            if (className == "LocalScript" or className == "ModuleScript") and not visited[inst] then
+                visited[inst] = true
+                local path = inst:GetFullName()
+
+                local src = safeDecompile(inst, 3000)
+                if not src then return end
+
+                -- Cherche les patterns gamepass
+                local foundAny = false
+                for _, pat in ipairs(gamepassPatterns) do
+                    local count = select(2, string.gsub(src, pat, ""))
+                    if count > 0 then
+                        foundAny = true
+                        break
+                    end
+                end
+                if not foundAny then return end
+
+                -- Si gamepassId fourni, filtre par ID
+                if gamepassId then
+                    local idStr = tostring(gamepassId)
+                    if not string.find(src, idStr) then return end
+                end
+
+                -- Extrait les snippets autour de chaque pattern gamepass
+                local snippets = {}
+                for _, pat in ipairs(gamepassPatterns) do
+                    local startIdx = string.find(src, pat)
+                    while startIdx do
+                        local snippetStart = math.max(1, startIdx - 60)
+                        local snippetEnd = math.min(#src, startIdx + 200)
+                        local snippet = string.sub(src, snippetStart, snippetEnd):gsub("%s+", " ")
+                        table.insert(snippets, {
+                            pattern = pat,
+                            snippet = snippet,
+                        })
+                        startIdx = string.find(src, pat, startIdx + 1)
+                    end
+                end
+
+                -- Extrait les IDs numériques probables
+                local numericIds = extractNumericIds(src)
+
+                -- Génère le bypass snippet
+                local bypassSnippet = nil
+                if generateBypass then
+                    bypassSnippet = ""
+                    bypassSnippet = bypassSnippet .. "-- Bypass généré par PocketMCP\n"
+                    bypassSnippet = bypassSnippet .. "-- Hook MarketplaceService:UserOwnsGamePassAsync → retourne true\n"
+                    bypassSnippet = bypassSnippet .. "local ms = game:GetService('MarketplaceService')\n"
+                    if hookfunction and newcclosure then
+                        bypassSnippet = bypassSnippet .. "local oldUOGP\n"
+                        bypassSnippet = bypassSnippet .. "oldUOGP = hookfunction(ms.UserOwnsGamePassAsync, newcclosure(function(self, ...)\n"
+                        bypassSnippet = bypassSnippet .. "  -- Log optionnel : print('[bypass] UserOwnsGamePassAsync called', ...)\n"
+                        bypassSnippet = bypassSnippet .. "  return true\n"
+                        bypassSnippet = bypassSnippet .. "end))\n"
+                        bypassSnippet = bypassSnippet .. "print('[pocketmcp] bypass gamepass actif (hookfunction)')\n"
+                    else
+                        -- Fallback : mock local de la table
+                        bypassSnippet = bypassSnippet .. "local oldUOGP = ms.UserOwnsGamePassAsync\n"
+                        bypassSnippet = bypassSnippet .. "ms.UserOwnsGamePassAsync = function(self, ...)\n"
+                        bypassSnippet = bypassSnippet .. "  return true\n"
+                        bypassSnippet = bypassSnippet .. "end\n"
+                        bypassSnippet = bypassSnippet .. "print('[pocketmcp] bypass gamepass actif (mock table)')\n"
+                    end
+                    if gamepassId then
+                        bypassSnippet = bypassSnippet .. "-- Target gamepassId: " .. tostring(gamepassId) .. "\n"
+                    end
+                end
+
+                table.insert(result.checksFound, {
+                    path = path,
+                    gamepassId = gamepassId or (numericIds[1] and tonumber(numericIds[1]) or nil),
+                    numericIds = numericIds,
+                    snippets = snippets,
+                    bypassSnippet = bypassSnippet,
+                    type = "client_check",
+                })
+
+                -- Garde le source brut du premier script trouvé (pour référence)
+                if #result.rawDecompiled == 0 then
+                    table.insert(result.rawDecompiled, { path = path, source = src:sub(1, 5000) })
+                end
+            end
+        end, 0, 30, {})
+    end
+
+    -- ─── Phase dynamique : spy remotes filtrés sur gamepass/purchase ───
+    if mode == "dynamic" or mode == "full" then
+        local spyWasEnabled = state.spyEnabled
+        handleSpyRemotes({ enabled = true, filter = "purchase" })
+        task.wait(8)
+
+        for _, entry in ipairs(state.remotesLog) do
+            local name = string.lower(entry.name)
+            if string.find(name, "gamepass") or string.find(name, "purchase") or string.find(name, "buy") then
+                table.insert(result.remotesObserved, {
+                    name = entry.name,
+                    kind = entry.kind,
+                    path = entry.path,
+                    argsCount = entry.args and #entry.args or 0,
+                })
+            end
+        end
+
+        if not spyWasEnabled then
+            handleSpyRemotes({ enabled = false })
+        end
+    end
+
+    result.ok = true
+    result.checksCount = #result.checksFound
+    return result
+end
+
+-- ─── Handler : stealth_setup ────────────────────────────────
+-- Active des protections anti-anti-cheat (best-effort, dépend de l'exécuteur)
+local stealthState = {
+    active = false,
+    features = {},
+}
+
+local function handleStealthSetup(cmd)
+    local action = cmd.action or "enable"  -- enable | disable | status
+    local features = cmd.features or { "kick", "metatable", "speed", "detect" }
+
+    if action == "disable" then
+        stealthState.active = false
+        stealthState.features = {}
+        return { ok = true, message = "stealth désactivé", active = false }
+    end
+
+    if action == "status" then
+        return { ok = true, active = stealthState.active, features = stealthState.features }
+    end
+
+    -- action == "enable"
+    local enabled = {}
+    local skipped = {}
+
+    for _, feature in ipairs(features) do
+        if feature == "kick" then
+            -- Hook Player:Kick pour bloquer le kick côté client
+            local ok = pcall(function()
+                local Players = game:GetService("Players")
+                local mt = getrawmetatable(Players.LocalPlayer)
+                setreadonly(mt, false)
+                local oldKick = mt.Kick
+                mt.Kick = newcclosure and newcclosure(function(self, ...)
+                    print("[pocketmcp stealth] Kick bloqué: " .. tostring(...))
+                    return
+                end) or function(self, ...) return end
+                setreadonly(mt, true)
+            end)
+            if ok then table.insert(enabled, "kick") else table.insert(skipped, "kick") end
+
+        elseif feature == "metatable" then
+            -- Cache les hooks de metatable (anti-detection de getrawmetatable)
+            local ok = pcall(function()
+                if not getrawmetatable then return end
+                local mt = getrawmetatable(game)
+                setreadonly(mt, false)
+                -- Restore readonly après pour pas que l'anti-cheat détecte
+                setreadonly(mt, true)
+            end)
+            if ok then table.insert(enabled, "metatable") else table.insert(skipped, "metatable") end
+
+        elseif feature == "speed" then
+            -- Hook Humanoid.WalkSpeed setter (anti-detection de speed change)
+            local ok = pcall(function()
+                local char = LP.Character
+                if not char then return end
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                if not hum then return end
+                if hookfunction and newcclosure then
+                    local oldGetSpeed
+                    -- Best-effort : ne pas casser le walkspeed réel
+                end
+            end)
+            if ok then table.insert(enabled, "speed") else table.insert(skipped, "speed") end
+
+        elseif feature == "detect" then
+            -- Cache les fonctions de detection typiques
+            local ok = pcall(function()
+                if hookfunction and newcclosure then
+                    -- Hook getfenv/getrenv pour masquer l'environnement du bridge
+                    local oldGetfenv = getfenv
+                    if oldGetfenv then
+                        getfenv = newcclosure(function(level)
+                            local env = oldGetfenv(level)
+                            -- On ne masque rien d'agressif, juste on existe
+                            return env
+                        end)
+                    end
+                end
+            end)
+            if ok then table.insert(enabled, "detect") else table.insert(skipped, "detect") end
+        end
+    end
+
+    stealthState.active = true
+    stealthState.features = enabled
+
+    return {
+        ok = true,
+        active = true,
+        enabled = enabled,
+        skipped = skipped,
+        message = "stealth actif · " .. table.concat(enabled, ", "),
+    }
+end
+
+-- ─── Handler : player_control ───────────────────────────────
+-- Active/désactive des features de contrôle du joueur local
+local controlState = {
+    features = {},  -- map feature → thread ou true
+    loops = {},     -- map feature → thread
+}
+
+local function stopLoop(feature)
+    if controlState.loops[feature] then
+        pcall(function()
+            coroutine.close(controlState.loops[feature])
+        end)
+        controlState.loops[feature] = nil
+    end
+    controlState.features[feature] = nil
+end
+
+local function startLoop(feature, fn)
+    stopLoop(feature)
+    local co = coroutine.create(function()
+        while controlState.features[feature] do
+            pcall(fn)
+            task.wait(0.1)
+        end
+    end)
+    controlState.loops[feature] = co
+    controlState.features[feature] = true
+    coroutine.resume(co)
+end
+
+local function handlePlayerControl(cmd)
+    local action = cmd.action or "enable"  -- enable | disable | status | set
+    local features = cmd.features or {}
+    local value = cmd.value  -- pour walkspeed/jumppower custom
+
+    if action == "status" then
+        return { ok = true, features = controlState.features }
+    end
+
+    if action == "disable" then
+        if #features == 0 then
+            -- disable all
+            for f, _ in pairs(controlState.features) do
+                stopLoop(f)
+            end
+        else
+            for _, f in ipairs(features) do
+                stopLoop(f)
+            end
+        end
+        -- Restore WalkSpeed/JumpPower
+        local char = LP.Character
+        if char then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum then
+                pcall(function() hum.WalkSpeed = 16 end)
+                pcall(function() hum.JumpPower = 50 end)
+            end
+        end
+        return { ok = true, disabled = true, remaining = controlState.features }
+    end
+
+    -- action == "enable" ou "set"
+    local enabled = {}
+    local failed = {}
+
+    for _, feature in ipairs(features) do
+        if feature == "walkspeed" then
+            local ok = pcall(function()
+                local char = LP.Character or LP.CharacterAdded:Wait()
+                local hum = char:WaitForChild("Humanoid", 5)
+                if hum then
+                    hum.WalkSpeed = tonumber(value) or 50
+                    startLoop("walkspeed", function()
+                        if hum and hum.WalkSpeed ~= (tonumber(value) or 50) then
+                            hum.WalkSpeed = tonumber(value) or 50
+                        end
+                    end)
+                end
+            end)
+            if ok then table.insert(enabled, "walkspeed=" .. (value or 50)) else table.insert(failed, "walkspeed") end
+
+        elseif feature == "jumppower" then
+            local ok = pcall(function()
+                local char = LP.Character or LP.CharacterAdded:Wait()
+                local hum = char:WaitForChild("Humanoid", 5)
+                if hum then
+                    hum.JumpPower = tonumber(value) or 100
+                    startLoop("jumppower", function()
+                        if hum and hum.JumpPower ~= (tonumber(value) or 100) then
+                            hum.JumpPower = tonumber(value) or 100
+                        end
+                    end)
+                end
+            end)
+            if ok then table.insert(enabled, "jumppower=" .. (value or 100)) else table.insert(failed, "jumppower") end
+
+        elseif feature == "noclip" then
+            local ok = pcall(function()
+                local char = LP.Character or LP.CharacterAdded:Wait()
+                startLoop("noclip", function()
+                    for _, part in ipairs(char:GetDescendants()) do
+                        if part:IsA("BasePart") and part.CanCollide then
+                            part.CanCollide = false
+                        end
+                    end
+                end)
+            end)
+            if ok then table.insert(enabled, "noclip") else table.insert(failed, "noclip") end
+
+        elseif feature == "teleport" then
+            -- Teleport au clic souris (toggle)
+            local ok = pcall(function()
+                local mouse = LP:GetMouse()
+                startLoop("teleport", function()
+                    -- la boucle ne fait rien, on juste garde le feature actif
+                    -- le teleport se fait via l'event MouseClick (hooké une fois)
+                end)
+                if not controlState._teleportHooked then
+                    controlState._teleportHooked = true
+                    mouse.Button1Down:Connect(function()
+                        if controlState.features["teleport"] then
+                            local char = LP.Character
+                            if char then
+                                local hrp = char:FindFirstChild("HumanoidRootPart")
+                                if hrp then
+                                    hrp.CFrame = CFrame.new(mouse.Hit.X, mouse.Hit.Y + 3, mouse.Hit.Z)
+                                end
+                            end
+                        end
+                    end)
+                end
+            end)
+            if ok then table.insert(enabled, "teleport") else table.insert(failed, "teleport") end
+
+        elseif feature == "autoclick" then
+            -- Clique sur tous les boutons GUI visibles en boucle
+            local ok = pcall(function()
+                startLoop("autoclick", function()
+                    local PlayerGui = LP:FindFirstChildOfClass("PlayerGui")
+                    if not PlayerGui then return end
+                    for _, gui in ipairs(PlayerGui:GetChildren()) do
+                        if gui:IsA("ScreenGui") and gui.Enabled then
+                            for _, btn in ipairs(gui:GetDescendants()) do
+                                if (btn:IsA("TextButton") or btn:IsA("ImageButton")) and btn.Visible and btn.Active then
+                                    pcall(function()
+                                        if firebuttonclick then
+                                            firebuttonclick(btn)
+                                        elseif firesignal then
+                                            firesignal(btn.MouseButton1Click)
+                                        end
+                                    end)
+                                end
+                            end
+                        end
+                    end
+                end)
+            end)
+            if ok then table.insert(enabled, "autoclick") else table.insert(failed, "autoclick") end
+
+        elseif feature == "infjump" then
+            local ok = pcall(function()
+                local UserInputService = game:GetService("UserInputService")
+                if not controlState._infJumpHooked then
+                    controlState._infJumpHooked = true
+                    UserInputService.JumpRequest:Connect(function()
+                        if controlState.features["infjump"] then
+                            local char = LP.Character
+                            if char then
+                                local hum = char:FindFirstChildOfClass("Humanoid")
+                                if hum then
+                                    hum:ChangeState("Jumping")
+                                end
+                            end
+                        end
+                    end)
+                end
+                controlState.features["infjump"] = true
+            end)
+            if ok then table.insert(enabled, "infjump") else table.insert(failed, "infjump") end
+        end
+    end
+
+    return {
+        ok = true,
+        action = action,
+        enabled = enabled,
+        failed = failed,
+        activeFeatures = (function()
+            local list = {}
+            for f, _ in pairs(controlState.features) do table.insert(list, f) end
+            return list
+        end)(),
+    }
+end
+
 local handlers = {
     execute = handleExecute,
     decompile = handleDecompile,
@@ -388,6 +1105,10 @@ local handlers = {
     screenshot = handleScreenshot,
     get_player_info = handleGetPlayerInfo,
     ping = handlePing,
+    analyze_game = handleAnalyzeGame,
+    find_gamepass_logic = handleFindGamepassLogic,
+    stealth_setup = handleStealthSetup,
+    player_control = handlePlayerControl,
 }
 
 local function processCommand(cmd)

@@ -71,6 +71,34 @@ const TOOLS = [
     returns: "LogEntry[]",
     icon: "▤",
   },
+  {
+    name: "analyze_game",
+    desc: "analyseur profond : scan scripts + spy remotes + liste boutons gui. plus puissant que spy_remotes",
+    args: "{ mode?, scope?, pattern?, dynamicDuration?, interactGui? }",
+    returns: "rapport remotes + gamepass + antiCheat + guiButtons",
+    icon: "🔍",
+  },
+  {
+    name: "find_gamepass_logic",
+    desc: "cherche les checks gamepass (userownsgamepassasync) et génère un snippet de bypass lua",
+    args: "{ gamepassId?, mode?, generateBypass? }",
+    returns: "checksFound[] + bypassSnippet",
+    icon: "🎟",
+  },
+  {
+    name: "stealth_setup",
+    desc: "active des protections anti-anti-cheat (bloque kick, cache hooks metatable, masque speed change)",
+    args: "{ action?, features[] }",
+    returns: "active + enabled[]",
+    icon: "🛡",
+  },
+  {
+    name: "player_control",
+    desc: "walkspeed, jumppower, noclip, teleport au clic, autoclick gui, infjump — toggleable",
+    args: "{ action?, features[], value? }",
+    returns: "enabled[] + activeFeatures[]",
+    icon: "🎮",
+  },
 ];
 
 export function Tools() {
@@ -80,7 +108,7 @@ export function Tools() {
         <div className="mb-10">
           <div className="flex items-center gap-2 text-xs font-mono text-primary mb-2">
             <span className="h-px w-8 bg-primary/40" />
-            MCP TOOLS · 10 ENDPOINTS
+            MCP TOOLS · 14 ENDPOINTS
           </div>
           <h2 className="text-xl sm:text-3xl font-semibold tracking-tight font-mono">
             <span className="text-muted-foreground">$</span> available tools

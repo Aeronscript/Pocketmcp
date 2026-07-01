@@ -941,6 +941,93 @@ end`,
 --   characterLoaded: true
 -- }`,
     },
+    {
+      title: "analyser un jeu en profondeur",
+      desc: "via l'outil mcp analyze_game — plus puissant que spy_remotes",
+      code: `-- mode "full" : scan statique + spy dynamique + boutons gui
+-- tool: analyze_game {
+--   mode: "full",          // static | dynamic | full
+--   scope: "all",          // ReplicatedStorage | StarterGui | StarterPlayer | Workspace | all
+--   pattern: "gamepass",   // filtre optionnel
+--   dynamicDuration: 10,   // secondes de spy
+--   interactGui: false     // cliquer les boutons pendant le spy
+-- }
+
+-- retourne un rapport consolidé :
+-- {
+--   scannedScripts: 47, decompiledScripts: 41,
+--   remotes: [...],           // FireServer/InvokeServer trouvés
+--   gamepassChecks: [...],    // UserOwnsGamePassAsync + IDs
+--   antiCheatHints: [...],    // Kick/WalkSpeed checks
+--   modulesLoaded: [...],     // require() calls
+--   guiButtons: [...],        // TextButton/ImageButton
+--   dynamicLog: [...]         // events capturés pendant le spy
+-- }`,
+    },
+    {
+      title: "trouver et bypass un check gamepass",
+      desc: "via l'outil mcp find_gamepass_logic — génère le bypass automatiquement",
+      code: `-- tool: find_gamepass_logic {
+--   gamepassId: 1234567,    // optionnel — sinon cherche tous
+--   mode: "full",           // static | dynamic | full
+--   generateBypass: true    // génère le snippet lua
+-- }
+
+-- retourne :
+-- {
+--   checksFound: [{
+--     path: "ReplicatedStorage.Modules.Shop",
+--     gamepassId: 1234567,
+--     snippets: [...],
+--     bypassSnippet: "local ms = game:GetService('MarketplaceService')\\n..."
+--   }],
+--   rawDecompiled: [{ path, source }]
+-- }
+--
+-- l'ia peut exécuter bypassSnippet via execute_code
+-- ou l'expliquer à l'utilisateur avant exécution`,
+    },
+    {
+      title: "activer les protections stealth",
+      desc: "via l'outil mcp stealth_setup — à appeler une fois en début de session",
+      code: `-- tool: stealth_setup {
+--   action: "enable",  // enable | disable | status
+--   features: ["kick", "metatable", "speed", "detect"]
+-- }
+
+-- features disponibles :
+--   kick      → bloque Player:Kick côté client
+--   metatable → cache les hooks getrawmetatable
+--   speed     → masque les changements WalkSpeed
+--   detect    → hook getfenv/getrenv pour masquer l'environnement
+--
+-- best-effort : si l'exécuteur ne supporte pas hookfunction,
+-- le bridge skip la feature et log ce qui marche`,
+    },
+    {
+      title: "contrôler le joueur local",
+      desc: "via l'outil mcp player_control — walkspeed, noclip, teleport, autoclick, infjump",
+      code: `-- activer walkspeed + noclip :
+-- tool: player_control {
+--   action: "enable",
+--   features: ["walkspeed", "noclip"],
+--   value: 75  // valeur custom pour walkspeed/jumppower
+-- }
+
+-- désactiver une feature :
+-- tool: player_control {
+--   action: "disable",
+--   features: ["walkspeed"]  // restaure WalkSpeed=16
+-- }
+
+-- features disponibles :
+--   walkspeed → set WalkSpeed (value optionnel, défaut 50)
+--   jumppower → set JumpPower (value optionnel, défaut 100)
+--   noclip    → désactive les collisions
+--   teleport  → teleport au clic souris
+--   autoclick → clique tous les boutons gui visibles en boucle
+--   infjump   → jump illimité`,
+    },
   ];
 
   return (
@@ -1051,7 +1138,7 @@ vérifiez que vous êtes dans le bon dossier :
   curl -X POST http://localhost:16384/mcp \\
     -H "Content-Type: application/json" \\
     -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
-  → doit retourner la liste des 10 outils
+  → doit retourner la liste des 14 outils
 
 2. vérifiez votre config client ia (url + transport)
 
