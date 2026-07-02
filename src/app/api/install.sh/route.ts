@@ -31,7 +31,7 @@ const INSTALL_SCRIPT = `#!/data/data/com.termux/files/usr/bin/bash
 # ════════════════════════════════════════════════════════════
 # PocketMCP — Install 1-commande pour Termux
 # Auteur: Aeronscript (Mohamed Amine)
-# Le serveur est téléchargé depuis pmcp.space-z.ai
+# Le serveur est téléchargé depuis pocketmcp.onrender.com
 # ════════════════════════════════════════════════════════════
 
 set -e
@@ -42,12 +42,12 @@ RED='\\033[0;31m'
 CYAN='\\033[0;36m'
 NC='\\033[0m'
 
-SITE_URL="https://pmcp.space-z.ai"
+SITE_URL="https://pocketmcp.onrender.com"
 INSTALL_DIR="$HOME/pocketmcp"
 BUNDLE_URL="$SITE_URL/api/download?type=server"
 
 echo -e "\${CYAN}═══════════════════════════════════════════════════\${NC}"
-echo -e "\${CYAN}  pocketmcp · install depuis pmcp.space-z.ai\${NC}"
+echo -e "\${CYAN}  pocketmcp · install depuis pocketmcp.onrender.com\${NC}"
 echo -e "\${CYAN}  by aeronscript (mohamed amine)\${NC}"
 echo -e "\${CYAN}═══════════════════════════════════════════════════\${NC}"
 echo ""
@@ -144,7 +144,7 @@ export async function GET(req: NextRequest) {
   const code = url.searchParams.get("code") || req.headers.get("Authorization")?.replace("Bearer ", "") || "";
   if (!isValidCode(code)) {
     return NextResponse.json(
-      { ok: false, error: "code d'accès requis — usage: bash <(curl -fsSL https://pmcp.space-z.ai/api/install.sh?code=VOTRE_CODE)" },
+      { ok: false, error: "code d'accès requis — usage: bash <(curl -fsSL https://pocketmcp.onrender.com/api/install.sh?code=VOTRE_CODE)" },
       { status: 403 }
     );
   }
