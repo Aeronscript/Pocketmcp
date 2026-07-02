@@ -162,10 +162,10 @@ const CORS = {
 };
 
 // ─── Rate limiting serveur MCP ──────────────────────────────
-// 50 tentatives d'auth par IP en 10 min, puis blocage 2 min
-// (assoupli — le bridge Roblox ne déclenche plus ce rate limit car
-//  les endpoints /api/register|poll|result|heartbeat sont publics)
-const SERVER_RATE_LIMIT = 50;
+// 5000 tentatives d'auth par IP en 10 min, puis blocage 2 min
+// (le dashboard auto-refresh 2s + requests PowerShell ne déclenchent
+//  plus le blocage ; le bridge Roblox reste exempté via endpoints publics)
+const SERVER_RATE_LIMIT = 5000;
 const SERVER_RATE_WINDOW = 10 * 60 * 1000;
 const SERVER_RATE_BLOCK = 2 * 60 * 1000;
 const serverAttempts = new Map<string, { count: number; firstAttempt: number; blockedUntil?: number }>();
