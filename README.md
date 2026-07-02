@@ -13,7 +13,7 @@
 ```bash
 # 1. Installe Termux depuis F-Droid (PAS le Play Store)
 # 2. Dans Termux :
-bash <(curl -fsSL https://pmcp.space-z.ai/api/install.sh?code=VOTRE_CODE_SITE)
+bash <(curl -fsSL https://pocketmcp.onrender.com/api/install.sh?code=VOTRE_CODE_SITE)
 # 3. Démarre le serveur
 cd ~/pocketmcp && bun run index.min.js
 ```
@@ -30,7 +30,7 @@ loadstring(game:HttpGet("http://localhost:16384/script.luau"))()
 ```bash
 curl -fsSL https://bun.sh/install | bash
 mkdir ~/pocketmcp && cd ~/pocketmcp
-curl -sL https://pmcp.space-z.ai/api/server-bundle?code=VOTRE_CODE_SITE -o server.tar.gz
+curl -sL https://pocketmcp.onrender.com/api/server-bundle?code=VOTRE_CODE_SITE -o server.tar.gz
 tar xzf server.tar.gz && mv pocketmcp-server/* . && rm -rf pocketmcp-server server.tar.gz
 bun install
 bun run index.min.js
@@ -42,10 +42,10 @@ bun run index.min.js
 
 | Système | Codes | Utilisation |
 |---|---|---|
-| **Site** (pmcp.space-z.ai) | `Robloxmcp-xxx` (admin) / `pmcp_xxx` (temp) | Login sur le site web |
+| **Site** (pocketmcp.onrender.com) | `Robloxmcp-xxx` (admin) / `pmcp_xxx` (temp) | Login sur le site web |
 | **Serveur** (localhost:16384) | `adm_xxx` (admin) / `tmp_xxx` (temp) | Bridge Lua + dashboard serveur |
 
-- Code site → pour accéder au site pmcp.space-z.ai
+- Code site → pour accéder au site pocketmcp.onrender.com
 - Code serveur → pour le bridge dans Roblox (`getgenv().PocketMCPCode`)
 - Les codes serveur `tmp_xxx` sont à **usage unique** (premier utilisateur = propriétaire à vie)
 - Durée configurable : 1h à 5h (max)
@@ -81,7 +81,7 @@ bun run index.min.js
 
 ## 📦 Distribution
 
-Le serveur est distribué **uniquement** depuis le site `pmcp.space-z.ai` :
+Le serveur est distribué **uniquement** depuis le site `pocketmcp.onrender.com` :
 - `/api/install.sh?code=VOTRE_CODE` — script d'installation 1-commande
 - `/api/server-bundle?code=VOTRE_CODE` — serveur MCP minifié en tar.gz
 
