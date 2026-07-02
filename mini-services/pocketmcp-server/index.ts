@@ -202,6 +202,24 @@ function getServerIP(req: Request): string {
   return req.headers.get("x-real-ip") || "127.0.0.1";
 }
 
+// Détecte si la requête vient de localhost (127.0.0.1 ou ::1).
+// Utilisé pour autoriser le dashboard local à accéder à /api/clients et /api/logs
+// sans authentification admin (puisqu'il tourne sur le téléphone de l'utilisateur).
+function isLocalRequest(req: Request): boolean {
+  const fwd = req.headers.get("x-forwarded-for");
+  if (fwd) {
+    const first = fwd.split(",")[0].trim();
+    if (first === "127.0.0.1" || first === "::1") return true;
+    return false;
+  }
+  const realIp = req.headers.get("x-real-ip");
+  if (realIp) {
+    return realIp === "127.0.0.1" || realIp === "::1";
+  }
+  // Pas de header d'IP → probablement Bun direct en localhost
+  return true;
+}
+
 // Cleanup toutes les 10 min
 setInterval(() => {
   const now = Date.now();
@@ -335,6 +353,8 @@ async function handleRequest(req: Request): Promise<Response> {
   // Endpoints publics : /, /health, /script.luau, /api/auth/verify
   // Endpoints bridge (publics — le bridge Roblox ne peut pas envoyer de header Authorization) :
   //   /api/register, /api/poll, /api/result, /api/heartbeat
+  // Endpoints dashboard local (publics uniquement depuis localhost) :
+  //   /api/clients, /api/logs — le dashboard HTML sur / les appelle sans header Authorization
   // Le claim du code temporaire se fait via le body.code de /api/register (optionnel)
   const isPublicEndpoint =
     path === "/" || path === "/health" || path === "/script.luau" ||
@@ -342,7 +362,13 @@ async function handleRequest(req: Request): Promise<Response> {
     path === "/api/register" || path === "/api/poll" ||
     path === "/api/result" || path === "/api/heartbeat";
 
-  if (!isPublicEndpoint) {
+  // Le dashboard local (servi sur /) fait des fetch('/api/clients') et fetch('/api/logs')
+  // sans header Authorization. On autorise ces endpoints uniquement depuis localhost
+  // pour ne pas exposer le code admin dans le HTML tout en faisant marcher le dashboard.
+  const isLocalDashboardEndpoint =
+    (path === "/api/clients" || path === "/api/logs") && isLocalRequest(req);
+
+  if (!isPublicEndpoint && !isLocalDashboardEndpoint) {
     const ip = getServerIP(req);
     const code = extractCode(req, url);
     const check = isValidCode(code);
