@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 
-const INSTALL_ONE_LINE = `bash <(curl -fsSL https://pmcp.space-z.ai/api/install.sh?code=VOTRE_CODE_SITE)`;
+const INSTALL_ONE_LINE = `bash <(curl -fsSL https://pocketmcp.onrender.com/api/install.sh?code=VOTRE_CODE_SITE)`;
 
 const STEPS = [
   {
@@ -13,12 +13,12 @@ const STEPS = [
     code: `# prérequis : termux installé (depuis f-droid)
 # ouvrez termux et collez (remplacez VOTRE_CODE_SITE) :
 
-bash <(curl -fsSL https://pmcp.space-z.ai/api/install.sh?code=VOTRE_CODE_SITE)
+bash <(curl -fsSL https://pocketmcp.onrender.com/api/install.sh?code=VOTRE_CODE_SITE)
 
 # ça installe :
 #   - node 18+ (si manquant)
 #   - bun 1.3+ (si manquant)
-#   - télécharge le serveur depuis pmcp.space-z.ai
+#   - télécharge le serveur depuis pocketmcp.onrender.com
 #   - bun install (dépendances)
 #   - configure le PATH dans ~/.bashrc
 # durée typique : 3 à 5 minutes selon votre connexion`,
