@@ -532,12 +532,12 @@ pkg install curl`} />
         l'installation est refusée.
       </P>
       <CodeBlock lang="bash" code={`# remplacez VOTRE_CODE_SITE par votre code (ex: pmcp_xxx)
-bash <(curl -fsSL https://pmcp.space-z.ai/api/install.sh?code=VOTRE_CODE_SITE)
+bash <(curl -fsSL https://pocketmcp.onrender.com/api/install.sh?code=VOTRE_CODE_SITE)
 
 # ça installe :
 #   - node 18+ (si manquant)
 #   - bun 1.3+ (si manquant)
-#   - télécharge le serveur depuis pmcp.space-z.ai
+#   - télécharge le serveur depuis pocketmcp.onrender.com
 #   - bun install (dépendances)
 #   - configure le PATH dans ~/.bashrc
 # durée typique : 3 à 5 minutes selon votre connexion`} />
@@ -611,7 +611,7 @@ curl -fsSL https://bun.sh/install | bash
 
 # 3. téléchargez le serveur (remplacez VOTRE_CODE_SITE) :
 mkdir ~/pocketmcp && cd ~/pocketmcp
-curl -sL "https://pmcp.space-z.ai/api/download?type=server" -o server.tar.gz
+curl -sL "https://pocketmcp.onrender.com/api/download?type=server" -o server.tar.gz
 tar xzf server.tar.gz && mv pocketmcp-server/* . && rm -rf pocketmcp-server server.tar.gz
 
 # 4. installez les dépendances et démarrez :
