@@ -55,3 +55,4 @@ server.log
 /tool-results/
 /examples/
 /upload/
+/.z-ai-secrets/
