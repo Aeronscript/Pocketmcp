@@ -2,6 +2,11 @@ import type { Metadata } from "next";
 import { Geist, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import { ensureAuthFile } from "@/lib/auth-codes";
+
+// Garantit la présence de data/auth-codes.json au démarrage (le fichier est
+// gitignoré car il contient le hash du code admin). Idempotent.
+ensureAuthFile();
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

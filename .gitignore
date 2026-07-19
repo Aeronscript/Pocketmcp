@@ -56,3 +56,15 @@ server.log
 /examples/
 /upload/
 /.z-ai-secrets/
+
+# Secrets & données d'auth générées (JAMAIS committées)
+/data/auth-codes.json
+/data/access-requests.json
+*.local.json
+
+# Screenshots / vignettes design (pas du code source)
+research/screenshots/
+data/auth-codes.test.json
+
+# pnpm (projet utilise bun)
+pnpm-lock.yaml

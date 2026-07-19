@@ -23,7 +23,6 @@ export function AdminCodeManager({ adminCode }: Props) {
     try { const res = await fetch("/api/site-auth/requests", { headers: { Authorization: `Bearer ${adminCode}` } }); const data = await res.json(); if (data.ok) setRequests(data.requests); } catch {}
   }, [adminCode]);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { fetchCodes(); fetchRequests(); const i = setInterval(() => { fetchCodes(); fetchRequests(); }, 5000); return () => clearInterval(i); }, []);
 
   const generate = async () => {

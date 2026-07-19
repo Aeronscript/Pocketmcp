@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readFileSync, existsSync } from "fs";
-import { join } from "path";
-import { createHash } from "crypto";
-const DATA_FILE = join(process.cwd(), "data", "auth-codes.json");
-function hashCode(code: string): string { return createHash("sha256").update(code).digest("hex"); }
-function loadAuth(): any { try { if (existsSync(DATA_FILE)) return JSON.parse(readFileSync(DATA_FILE, "utf-8")); } catch {} return { adminHash: "", tempCodes: [] }; }
+import { loadAuth, hashCode, isValidCode } from "@/lib/auth-codes";
+
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const code = url.searchParams.get("code");

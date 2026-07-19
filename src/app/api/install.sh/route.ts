@@ -1,31 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readFileSync, existsSync } from "fs";
-import { join } from "path";
-import { createHash } from "crypto";
+import { isValidCode, extractCode } from "@/lib/auth-codes";
 
 // GET /api/install.sh?code=xxx
 // Protégé : nécessite un code valide (admin ou temporaire)
-
-const DATA_FILE = join(process.cwd(), "data", "auth-codes.json");
-
-interface AuthData { adminHash: string; tempCodes: any[]; }
-
-function hashCode(code: string): string {
-  return createHash("sha256").update(code).digest("hex");
-}
-
-function loadAuth(): AuthData {
-  try { if (existsSync(DATA_FILE)) return JSON.parse(readFileSync(DATA_FILE, "utf-8")); } catch {}
-  return { adminHash: "", tempCodes: [] };
-}
-
-function isValidCode(code: string): boolean {
-  if (!code) return false;
-  const data = loadAuth();
-  if (hashCode(code) === data.adminHash) return true;
-  const temp = (data.tempCodes || []).find((t: any) => t.code === code && t.claimed);
-  return !!temp;
-}
 
 const INSTALL_SCRIPT = `#!/data/data/com.termux/files/usr/bin/bash
 # ════════════════════════════════════════════════════════════
@@ -44,7 +21,7 @@ NC='\\033[0m'
 
 SITE_URL="https://pocketmcp.onrender.com"
 INSTALL_DIR="$HOME/pocketmcp"
-BUNDLE_URL="$SITE_URL/api/download?type=server"
+BUNDLE_URL="$SITE_URL/api/download?type=server&code=USER_CODE"
 
 echo -e "\${CYAN}═══════════════════════════════════════════════════\${NC}"
 echo -e "\${CYAN}  pocketmcp · install depuis pocketmcp.onrender.com\${NC}"
@@ -141,7 +118,7 @@ echo ""
 
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
-  const code = url.searchParams.get("code") || req.headers.get("Authorization")?.replace("Bearer ", "") || "";
+  const code = extractCode(url.searchParams, req.headers.get("Authorization"));
   if (!isValidCode(code)) {
     return NextResponse.json(
       { ok: false, error: "code d'accès requis — usage: bash <(curl -fsSL https://pocketmcp.onrender.com/api/install.sh?code=VOTRE_CODE)" },

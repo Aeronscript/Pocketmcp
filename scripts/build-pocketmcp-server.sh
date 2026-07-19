@@ -5,7 +5,8 @@
 # ════════════════════════════════════════════════════════════
 set -e
 
-SERVER_DIR="/home/z/my-project/mini-services/pocketmcp-server"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SERVER_DIR="$SCRIPT_DIR/../mini-services/pocketmcp-server"
 cd "$SERVER_DIR"
 
 # Build temporaire (sans header)
@@ -14,7 +15,7 @@ bun build index.ts --minify --outfile="$TMP_FILE" --target=bun
 
 # Header anti-fork
 HEADER='// ════════════════════════════════════════════════════════════
-// PocketMCP Server v0.3.0 · Copyright (c) 2026 Aeronscript
+// PocketMCP Server v0.3.1 · Copyright (c) 2026 Aeronscript
 // ALL RIGHTS RESERVED.
 // ⚠ FORK, COPIE, REDISTRIBUTION INTERDITS SANS AUTORISATION.
 // Contact: aeronscriptlabs@gmail.com

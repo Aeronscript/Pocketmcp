@@ -9,21 +9,18 @@
 # Notes:
 #   - Free tier plan (sleeps after 15 min of inactivity, wakes up in ~1 min)
 #   - SQLite data is ephemeral on free tier (no persistent disk)
-#     -> prisma db push recreates the schema on each startup
-#     -> admin code (in repo) persists, temp codes (runtime writes) are reset
+#     -> l'auth est stockée dans data/auth-codes.json (régénéré à chaque startup)
+#     -> temp codes (runtime) sont réinitialisés au redémarrage
 #   - For production with persistent data, upgrade to a paid plan with disks
-#     or switch to PostgreSQL (Neon/Supabase free tiers)
 
 services:
   - type: web
     name: pocketmcp
     runtime: node
     plan: free
-    buildCommand: npm install && npm run build
-    startCommand: npx prisma db push && npm run start
+    buildCommand: bun install && bun run build
+    startCommand: bun run start
     envVars:
-      - key: DATABASE_URL
-        value: file:./db/custom.db
       - key: NODE_ENV
         value: production
       - key: NEXT_TELEMETRY_DISABLED

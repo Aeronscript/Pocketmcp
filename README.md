@@ -70,10 +70,12 @@ bun run index.min.js
 
 ## 🔒 Sécurité
 
-- **Serveur** : bind localhost par défaut, auth sur tous les endpoints, codes hashés
+- **Serveur** : bind `127.0.0.1` par défaut (jamais exposé sur le réseau), auth sur tous les endpoints, codes hashés (SHA-256), CORS restreint aux origins localhost
 - **Site** : login obligatoire, rate limiting, codes à usage unique, validation Gmail
-- **Distribution** : serveur minifié, repo GitHub privé, bundle depuis le site uniquement
+- **Distribution** : serveur minifié, repo GitHub privé, bundle depuis le site uniquement (toutes les routes `/api/download`, `/api/server-bundle`, `/api/install.sh` exigent un code valide)
 - **LICENSE** : All Rights Reserved — fork, copie, redistribution interdits
+
+> ⚠️ `data/auth-codes.json` est **gitignoré** (contient le hash du code admin). Il est généré automatiquement au 1er lancement si absent. Ne le commitez jamais.
 
 ⚠ **Risque de ban Roblox** — utilisez un compte secondaire.
 
@@ -86,6 +88,14 @@ Le serveur est distribué **uniquement** depuis le site `pocketmcp.onrender.com`
 - `/api/server-bundle?code=VOTRE_CODE` — serveur MCP minifié en tar.gz
 
 Le repo GitHub est **privé** et sert uniquement de backup/versioning.
+
+### Variables d'environnement (serveur MCP)
+
+| Variable | Défaut | Description |
+|---|---|---|
+| `POCKETMCP_HOST` | `127.0.0.1` | Interface d'écoute. Mettre `0.0.0.0` **uniquement** pour bridge depuis un émulateur sur le même réseau (expose le port sur le LAN). |
+| `POCKETMCP_PORT` | `16384` | Port d'écoute. |
+| `POCKETMCP_ADMIN_CODE` | auto-généré | Code admin du serveur (`adm_xxx`). |
 
 ---
 
