@@ -2,8 +2,9 @@
 // PocketMCP Server — outils MCP (définition + handlers)
 // ════════════════════════════════════════════════════════════
 import {
-  clients, commandQueues, results, getFirstClient, genId, log,
-  jsonResponse, extractCode, isValidCode, ADMIN_CODE, tempCodes,
+  clients, commandQueues, results, logs, getFirstClient, genId, log,
+  jsonResponse, corsHeaders, extractCode, isValidCode, ADMIN_CODE, tempCodes,
+  setCurrentRequest,
 } from "./state";
 import { formatResult } from "./tools-format";
 
@@ -257,8 +258,8 @@ export const MCP_TOOLS = [
   },
 ];
 
-async function handleMCP(req: Request): Promise<Response> {
-  currentRequest = req;
+export async function handleMCP(req: Request): Promise<Response> {
+  setCurrentRequest(req);
   try {
     const body = await req.json();
     const { jsonrpc, id, method, params } = body;
@@ -434,7 +435,7 @@ async function handleMCP(req: Request): Promise<Response> {
   }
 }
 
-function handleMCPStream(req: Request): Response {
+export function handleMCPStream(req: Request): Response {
   const stream = new ReadableStream({
     start(controller) {
       controller.enqueue(": ping\n\n");

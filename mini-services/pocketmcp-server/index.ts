@@ -9,14 +9,14 @@ import {
   PORT, HOST, ADMIN_CODE, tempCodes, whitelistedClients,
   clients, commandQueues, results, logs,
   isValidCode, claimCode, generateTempCode, extractCode, getFirstClient,
-  jsonResponse, log, corsHeaders, CORS,
+  genId, jsonResponse, log, corsHeaders, CORS,
   checkServerRateLimit, getServerIP, isLocalRequest, setCurrentRequest,
 } from "./src/state";
-import { MCP_TOOLS, MCP_SESSIONS } from "./src/tools";
+import { MCP_TOOLS, handleMCP, handleMCPStream } from "./src/tools";
 import { renderDashboard } from "./src/dashboard";
 
 async function handleRequest(req: Request): Promise<Response> {
-  currentRequest = req;
+  setCurrentRequest(req);
   const url = new URL(req.url);
   const path = url.pathname;
   const method = req.method;

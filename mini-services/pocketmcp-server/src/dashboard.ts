@@ -2,6 +2,7 @@
 // PocketMCP Server — dashboard HTML (rendu + helpers JS inline)
 // ════════════════════════════════════════════════════════════
 import {
+  PORT,
   clients, logs, results, commandQueues, getFirstClient, whitelistedClients,
   jsonResponse, log, ADMIN_CODE, tempCodes,
 } from "./state";
