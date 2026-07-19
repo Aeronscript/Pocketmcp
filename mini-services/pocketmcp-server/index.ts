@@ -4,6 +4,13 @@
 // Port: 16384
 // ════════════════════════════════════════════════════════════
 
+import { readFileSync, existsSync } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
+
+// __dirname local (sert à localiser bridge.lua, à côté de ce fichier)
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
 // ─── Modules séparés (state, outils MCP, dashboard) ───────────
 import {
   PORT, HOST, ADMIN_CODE, tempCodes, whitelistedClients,
