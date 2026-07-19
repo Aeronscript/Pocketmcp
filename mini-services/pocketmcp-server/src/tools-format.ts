@@ -1,6 +1,6 @@
 // formatage des résultats d’outils MCP
 
-function formatResult(r: any, toolName: string): string {
+export function formatResult(r: any, toolName: string): string {
   if (!r) return "Pas de résultat";
   if (toolName === "execute_code") {
     let text = "";

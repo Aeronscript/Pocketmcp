@@ -261,3 +261,53 @@ export function getFirstClient(): string | null {
   }
   return null;
 }
+
+// ─── Envoi de commandes aux clients Roblox ──────────────────
+export async function waitForResult(
+  clientId: string,
+  commandId: string,
+  timeoutMs: number
+): Promise<CommandResult | null> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const list = results.get(clientId) || [];
+    const idx = list.findIndex((r) => r.commandId === commandId);
+    if (idx >= 0) {
+      const result = list[idx];
+      list.splice(idx, 1);
+      return result;
+    }
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  return null;
+}
+
+// Envoie une commande à un client et attend le résultat
+export async function sendCommand(
+  clientId: string,
+  cmd: Omit<Command, "id" | "createdAt">,
+  timeoutMs = 30000
+): Promise<any> {
+  const command: Command = {
+    id: genId(),
+    createdAt: Date.now(),
+    ...cmd,
+  };
+  const queue = commandQueues.get(clientId) || [];
+  queue.push(command);
+  commandQueues.set(clientId, queue);
+  log("info", "mcp", `→ ${cmd.type} on ${clientId} (${command.id})`);
+
+  const result = await waitForResult(clientId, command.id, timeoutMs);
+  if (result) {
+    const r = result.result;
+    if (r.ok) {
+      log("success", "exec", `✓ ${cmd.type} OK (${command.id})`);
+    } else {
+      log("error", "exec", `✗ ${cmd.type} failed: ${r.error || "?"} (${command.id})`);
+    }
+    return r;
+  }
+  log("warn", "mcp", `⏱ ${cmd.type} timeout (${command.id})`);
+  return { ok: false, error: `Timeout after ${timeoutMs / 1000}s` };
+}

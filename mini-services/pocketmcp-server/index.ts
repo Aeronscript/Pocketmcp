@@ -11,6 +11,7 @@ import {
   isValidCode, claimCode, generateTempCode, extractCode, getFirstClient,
   genId, jsonResponse, log, corsHeaders, CORS,
   checkServerRateLimit, getServerIP, isLocalRequest, setCurrentRequest,
+  sendCommand,
 } from "./src/state";
 import { MCP_TOOLS, handleMCP, handleMCPStream } from "./src/tools";
 import { renderDashboard } from "./src/dashboard";
