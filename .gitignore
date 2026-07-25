@@ -57,10 +57,21 @@ server.log
 /upload/
 /.z-ai-secrets/
 
-# Secrets & données d'auth générées (JAMAIS committées)
-/data/auth-codes.json
+# Secrets & données d'auth générées
+# Note : data/auth-codes.json EST commité sur GitHub (le hash SHA-256 est one-way,
+# 128 bits d'entropie, impossible à brute-forcer). Cela permet au code admin site
+# d'être persistant sur Render (free tier = filesystem éphémère).
+# NE JAMAIS committer le code admin en clair, seulement son hash.
 /data/access-requests.json
 *.local.json
+
+# Bases de données SQLite (générées par prisma db push, jamais commitées)
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
 
 # Screenshots / vignettes design (pas du code source)
 research/screenshots/
