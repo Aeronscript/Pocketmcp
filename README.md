@@ -51,6 +51,36 @@ bun run index.min.js
 - Durée configurable : 1h à 5h (max)
 - **Rate limiting** : 5 tentatives de login / 15 min sur le site
 
+### 🔑 Code admin serveur — récupération et révocation (P1 #5 + P1 #6)
+
+Le code admin serveur (`adm_xxx`) est généré automatiquement au 1er lancement et :
+- Stocké dans `~/.pocketmcp.env` (mode `0600`, lecture seule pour ton user)
+- Affiché **une seule fois** en console au démarrage
+- **Jamais retransmis sur le réseau** (invisible pour un sniffeur WiFi)
+
+#### Récupérer le code
+```bash
+# Affiche le code actuel (depuis le fichier env)
+cat ~/.pocketmcp.env
+```
+
+#### Révoquer le code (si compromis ou perdu)
+```bash
+# Renomme ~/.pocketmcp.env en .revoked-<timestamp> (audit trail)
+# Puis redémarre le serveur pour en générer un nouveau
+bun index.ts --reset-admin
+# Affiche : "⚠ Clé admin révoquée. Backup: ~/.pocketmcp.env.revoked-..."
+# Redémarre ensuite normalement :
+bun index.ts
+# Affiche le nouveau code en console (1 seule fois)
+```
+
+> **Pourquoi un canal out-of-band ?**
+> Si on pouvait reset la clé depuis le dashboard, on aurait une boucle :
+> il faut la clé pour ouvrir le dashboard, et le dashboard pour reset la clé.
+> Le canal CLI impose un accès physique au téléphone (Termux), ce qui est
+> le modèle de menace réaliste (stealer local, pas attaquant réseau).
+
 ---
 
 ## 🎯 Features
