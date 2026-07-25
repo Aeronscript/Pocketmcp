@@ -181,9 +181,15 @@ export function corsHeaders(req: Request): Record<string, string> {
 export const CORS = corsHeaders(new Request("http://localhost:16384"));
 
 // ─── Rate limiting serveur MCP ──────────────────────────────
-// (volontairement généreux : le dashboard local auto-refresh 2s + bridge
-// Roblox ne doivent pas être bloqués ; les codes admin sont à 16^hex)
-export const SERVER_RATE_LIMIT = 5000;
+// VULN-005 fix : 5000 → 100 req/10min.
+// Le rate limit ne s'applique QU'AUX ÉCHECS d'auth (tentatives de codes invalides
+// sur /api/auth/verify ou endpoints admin sans code valide).
+// Les endpoints publics (bridge, dashboard local via isLocalRequest) ne déclenchent
+// jamais ce rate limit, donc le dashboard auto-refresh et le bridge heartbeat ne sont
+// pas impactés.
+// 100 req/10min = ~10 essais/min, suffisant pour légitime (user qui se trompe de code)
+// tout en cassant le brute force (5000 permettait 8 codes/sec).
+export const SERVER_RATE_LIMIT = 100;
 export const SERVER_RATE_WINDOW = 10 * 60 * 1000;
 export const SERVER_RATE_BLOCK = 2 * 60 * 1000;
 const serverAttempts = new Map<string, { count: number; firstAttempt: number; blockedUntil?: number }>();
