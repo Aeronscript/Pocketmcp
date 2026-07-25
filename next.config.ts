@@ -41,6 +41,9 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: false,
   },
   reactStrictMode: true,
+  // Information disclosure : ne pas exposer "X-Powered-By: Next.js" dans les headers.
+  // C'est mineur (Next.js est détectable autrement) mais c'est une bonne pratique.
+  poweredByHeader: false,
   async headers() {
     return [
       {
