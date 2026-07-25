@@ -277,6 +277,18 @@ export function renderDashboard(): string {
   </div>
 
 <script>
+// VULN-002 fix : sanitize tout texte utilisateur avant injection dans innerHTML.
+// Empêche le XSS via playerName, executor, clientId, message de log, etc.
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 function showTab(name, btn) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -354,8 +366,8 @@ function renderTools() {
       : '<span class="badge-tool badge-basic">basic</span>';
     return \`
     <div class="tool-card">
-      <div class="tool-name">\${t.name}()\${badge}</div>
-      <div class="tool-desc">\${t.desc}</div>
+      <div class="tool-name">\${escapeHtml(t.name)}()\${badge}</div>
+      <div class="tool-desc">\${escapeHtml(t.desc)}</div>
     </div>
   \`;
   }).join('');
@@ -367,12 +379,12 @@ function renderAdvancedTools() {
   if (!el) return;
   el.innerHTML = ADVANCED_TOOLS.map((t, ti) => \`
     <div class="advanced-card">
-      <div class="tool-icon">\${t.icon}</div>
-      <div class="tool-title">\${t.title}</div>
-      <div class="tool-full-desc">\${t.desc}</div>
-      <div class="tool-args">args: <code>\${t.args}</code></div>
+      <div class="tool-icon">\${escapeHtml(t.icon)}</div>
+      <div class="tool-title">\${escapeHtml(t.title)}</div>
+      <div class="tool-full-desc">\${escapeHtml(t.desc)}</div>
+      <div class="tool-args">args: <code>\${escapeHtml(t.args)}</code></div>
       <div class="tool-actions">
-        \${t.tests.map((test, tsti) => \`<button class="btn-test" onclick="testAdvanced(\${ti}, \${tsti})">▶ \${test.label}</button>\`).join('')}
+        \${t.tests.map((test, tsti) => \`<button class="btn-test" onclick="testAdvanced(\${ti}, \${tsti})">▶ \${escapeHtml(test.label)}</button>\`).join('')}
       </div>
     </div>
   \`).join('');
@@ -405,7 +417,7 @@ async function testAdvanced(toolIdx, testIdx) {
     const isOk = parsed.ok === true || (res.ok && !parsed.error);
     statusEl.innerHTML = isOk
       ? '<span class="result-status result-ok">✓ ok</span>'
-      : '<span class="result-status result-err">✗ ' + (parsed.error || 'erreur') + '</span>';
+      : '<span class="result-status result-err">✗ ' + escapeHtml(parsed.error || 'erreur') + '</span>';
     jsonEl.textContent = JSON.stringify(parsed, null, 2);
   } catch (e) {
     statusEl.innerHTML = '<span class="result-status result-err">✗ network error</span>';
@@ -435,16 +447,16 @@ async function refresh() {
     } else {
       clientsEl.innerHTML = online.map(c => \`
         <div class="client">
-          <div class="client-name">\${c.playerName}
+          <div class="client-name">\${escapeHtml(c.playerName)}
             <span class="badge badge-online">●</span>
-            <span class="badge badge-http">\${c.httpMode || 'request'}</span>
-            <span class="badge badge-transport">\${c.transport || 'HTTP Polling'}</span>
-            <span class="badge badge-poll">poll: \${c.pollInterval || 100}ms</span>
+            <span class="badge badge-http">\${escapeHtml(c.httpMode || 'request')}</span>
+            <span class="badge badge-transport">\${escapeHtml(c.transport || 'HTTP Polling')}</span>
+            <span class="badge badge-poll">poll: \${escapeHtml(c.pollInterval || 100)}ms</span>
           </div>
           <div class="client-info">
-            clientId: \${c.clientId}<br>
-            executor: \${c.executor} · uptime: \${c.uptime}s · placeId: \${c.placeId}<br>
-            supports: decompile=\${c.supports?.decompile || false}, drawing=\${c.supports?.drawing || false}, files=\${c.supports?.writefile || false}, ws=\${c.supports?.webSocket || false}<br>
+            clientId: \${escapeHtml(c.clientId)}<br>
+            executor: \${escapeHtml(c.executor)} · uptime: \${escapeHtml(c.uptime)}s · placeId: \${escapeHtml(c.placeId)}<br>
+            supports: decompile=\${escapeHtml(c.supports?.decompile || false)}, drawing=\${escapeHtml(c.supports?.drawing || false)}, files=\${escapeHtml(c.supports?.writefile || false)}, ws=\${escapeHtml(c.supports?.webSocket || false)}<br>
             <span style="color:#fbbf24">⚠ WebSocket mort sur mobile → HTTP polling 100ms activé automatiquement</span>
           </div>
         </div>
@@ -457,7 +469,7 @@ async function refresh() {
       logsEl.innerHTML = '<div class="empty">aucun log. connecte un client et exécute du code.</div>';
     } else {
       logsEl.innerHTML = recent.map(l =>
-        '<div class="log-line log-' + l.level + '">[' + l.time + '] [' + l.level.toUpperCase() + '] [' + l.source + '] ' + l.message + '</div>'
+        '<div class="log-line log-' + escapeHtml(l.level) + '">[' + escapeHtml(l.time) + '] [' + escapeHtml(l.level).toUpperCase() + '] [' + escapeHtml(l.source) + '] ' + escapeHtml(l.message) + '</div>'
       ).join('');
       logsEl.scrollTop = logsEl.scrollHeight;
     }
