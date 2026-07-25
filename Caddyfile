@@ -1,23 +1,40 @@
 :81 {
-	@transform_port_query {
-		query XTransformPort=*
-	}
+        # VULN-001 fix : whitelist de ports au lieu de XTransformPort=*
+        # Seuls les services légitimes de PocketMCP peuvent être proxyés.
+        # Ports autorisés :
+        #   - 3000 : app Next.js (default)
+        #   - 16384 : mini-service pocketmcp-server
+        #   - 3001-3010 : plage pour mini-services supplémentaires éventuels
+        @transform_port_query {
+                query XTransformPort=3000
+                query XTransformPort=16384
+                query XTransformPort=3001
+                query XTransformPort=3002
+                query XTransformPort=3003
+                query XTransformPort=3004
+                query XTransformPort=3005
+                query XTransformPort=3006
+                query XTransformPort=3007
+                query XTransformPort=3008
+                query XTransformPort=3009
+                query XTransformPort=3010
+        }
 
-	handle @transform_port_query {
-		reverse_proxy localhost:{query.XTransformPort} {
-			header_up Host {host}
-			header_up X-Forwarded-For {remote_host}
-			header_up X-Forwarded-Proto {scheme}
-			header_up X-Real-IP {remote_host}
-		}
-	}
+        handle @transform_port_query {
+                reverse_proxy localhost:{query.XTransformPort} {
+                        header_up Host {host}
+                        header_up X-Forwarded-For {remote_host}
+                        header_up X-Forwarded-Proto {scheme}
+                        header_up X-Real-IP {remote_host}
+                }
+        }
 
-	handle {
-		reverse_proxy localhost:3000 {
-			header_up Host {host}
-			header_up X-Forwarded-For {remote_host}
-			header_up X-Forwarded-Proto {scheme}
-			header_up X-Real-IP {remote_host}
-		}
-	}
+        handle {
+                reverse_proxy localhost:3000 {
+                        header_up Host {host}
+                        header_up X-Forwarded-For {remote_host}
+                        header_up X-Forwarded-Proto {scheme}
+                        header_up X-Real-IP {remote_host}
+                }
+        }
 }
