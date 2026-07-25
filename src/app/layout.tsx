@@ -19,6 +19,11 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
+  // metadataBase : obligatoire pour que Next.js résolve les URLs relatives
+  // des images Open Graph / Twitter Cards en URLs absolues.
+  // Sans ça, Next.js utilise http://localhost:10000 (port dev) → pas de preview
+  // quand on partage le lien sur Discord/Twitter/WhatsApp.
+  metadataBase: new URL("https://pocketmcp.onrender.com"),
   title: "PocketMCP — Roblox MCP mobile-first",
   description:
     "Serveur MCP Roblox pour mobile. Branche ton tél Android (Termux + Delta/Hydrogen) sur OpenCode, Codex, Claude. Dashboard live + exécution Lua + RemoteSpy.",
