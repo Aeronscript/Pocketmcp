@@ -30,11 +30,10 @@ interface Props {
   onBack: () => void;
   onNavigate?: (section: string) => void;
   isAdmin?: boolean;
-  adminCode?: string;
   AdminComponent?: React.ReactNode;
 }
 
-export function DocsPage({ onBack, onNavigate, isAdmin, adminCode, AdminComponent }: Props) {
+export function DocsPage({ onBack, onNavigate, isAdmin, AdminComponent }: Props) {
   const [section, setSection] = useState<Section>("intro");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const visibleSections = isAdmin ? [...SECTIONS, ADMIN_SECTION] : SECTIONS;
