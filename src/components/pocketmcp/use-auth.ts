@@ -5,60 +5,79 @@ import { useState, useEffect, useCallback } from "react";
 interface AuthState {
   isLoggedIn: boolean;
   role: "admin" | "user" | null;
-  code: string | null;
+  deviceId: string | null;
+  features: string[];
   loading: boolean;
 }
 
-const SESSION_KEY = "pmcp_auth_code";
-
 export function useAuth(): AuthState & {
-  login: (code: string) => Promise<{ ok: boolean; error?: string }>;
-  logout: () => void;
+  login: (code: string) => Promise<{ ok: boolean; error?: string; role?: string }>;
+  logout: () => Promise<void>;
 } {
   const [state, setState] = useState<AuthState>({
     isLoggedIn: false,
     role: null,
-    code: null,
+    deviceId: null,
+    features: [],
     loading: true,
   });
 
+  // Au chargement : vérifie si on a une session active (cookie httpOnly)
   useEffect(() => {
-    const stored = localStorage.getItem(SESSION_KEY);
-    if (!stored) {
-      Promise.resolve().then(() => setState(prev => ({ ...prev, loading: false })));
-      return;
-    }
     let cancelled = false;
-    fetch(`/api/site-auth/check?code=${encodeURIComponent(stored)}`)
+    fetch("/api/site-auth/me", { credentials: "same-origin" })
       .then(r => r.json())
       .then(data => {
         if (cancelled) return;
-        if (data.ok) {
-          setState({ isLoggedIn: true, role: data.role, code: stored, loading: false });
+        if (data.ok && data.authenticated) {
+          setState({
+            isLoggedIn: true,
+            role: data.role,
+            deviceId: data.deviceId,
+            features: data.features || [],
+            loading: false,
+          });
         } else {
-          localStorage.removeItem(SESSION_KEY);
-          setState({ isLoggedIn: false, role: null, code: null, loading: false });
+          setState({
+            isLoggedIn: false,
+            role: null,
+            deviceId: data.deviceId || null,
+            features: [],
+            loading: false,
+          });
         }
       })
       .catch(() => {
         if (cancelled) return;
-        setState({ isLoggedIn: false, role: null, code: null, loading: false });
+        setState({
+          isLoggedIn: false,
+          role: null,
+          deviceId: null,
+          features: [],
+          loading: false,
+        });
       });
     return () => { cancelled = true; };
   }, []);
 
-  const login = useCallback(async (code: string): Promise<{ ok: boolean; error?: string }> => {
+  const login = useCallback(async (code: string): Promise<{ ok: boolean; error?: string; role?: string }> => {
     try {
       const res = await fetch("/api/site-auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
         body: JSON.stringify({ code }),
       });
       const data = await res.json();
       if (data.ok) {
-        localStorage.setItem(SESSION_KEY, code);
-        setState({ isLoggedIn: true, role: data.role, code, loading: false });
-        return { ok: true };
+        setState({
+          isLoggedIn: true,
+          role: data.role,
+          deviceId: data.deviceId,
+          features: data.role === "admin" ? ["*"] : [],
+          loading: false,
+        });
+        return { ok: true, role: data.role };
       }
       return { ok: false, error: data.error || "code invalide" };
     } catch {
@@ -66,9 +85,20 @@ export function useAuth(): AuthState & {
     }
   }, []);
 
-  const logout = useCallback(() => {
-    localStorage.removeItem(SESSION_KEY);
-    setState({ isLoggedIn: false, role: null, code: null, loading: false });
+  const logout = useCallback(async () => {
+    try {
+      await fetch("/api/site-auth/logout", {
+        method: "POST",
+        credentials: "same-origin",
+      });
+    } catch {}
+    setState({
+      isLoggedIn: false,
+      role: null,
+      deviceId: null,
+      features: [],
+      loading: false,
+    });
   }, []);
 
   return { ...state, login, logout };
