@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
+import { toast } from "sonner";
 
 interface Props {
   onLogin: (code: string) => Promise<{ ok: boolean; error?: string }>;
@@ -16,6 +17,28 @@ export function LoginOverlay({ onLogin }: Props) {
   const [reqName, setReqName] = useState("");
   const [reqMessage, setReqMessage] = useState("");
   const [reqSent, setReqSent] = useState(false);
+  const [deviceId, setDeviceId] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  // Récupère le device ID au chargement (le cookie est set par /api/site-auth/me)
+  useEffect(() => {
+    fetch("/api/site-auth/me", { credentials: "same-origin" })
+      .then(r => r.json())
+      .then(data => {
+        if (data.deviceId) setDeviceId(data.deviceId);
+      })
+      .catch(() => {});
+  }, []);
+
+  const copyDeviceId = async () => {
+    if (!deviceId) return;
+    try {
+      await navigator.clipboard.writeText(deviceId);
+      setCopied(true);
+      toast.success("ID copié");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {}
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,7 +56,12 @@ export function LoginOverlay({ onLogin }: Props) {
     try {
       const res = await fetch("/api/site-auth/request-code", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: reqEmail.trim(), name: reqName.trim(), message: reqMessage.trim() }),
+        body: JSON.stringify({
+          email: reqEmail.trim(),
+          name: reqName.trim(),
+          message: reqMessage.trim(),
+          deviceId: deviceId,  // Inclut le device ID pour que l'admin puisse identifier
+        }),
       });
       const data = await res.json();
       if (data.ok) { setReqSent(true); if (data.mailtoUrl) window.open(data.mailtoUrl, "_blank"); }
@@ -86,6 +114,24 @@ export function LoginOverlay({ onLogin }: Props) {
               <div className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 mb-4">
                 <div className="text-[10px] font-mono text-amber-300/90 leading-relaxed">⚠ utilisez votre <strong>vrai compte gmail</strong>. les fausses adresses et les demandes sans message sérieux seront rejetées.</div>
               </div>
+              {/* Device ID : affiché pour que l'utilisateur puisse le copier et l'envoyer à l'admin */}
+              {deviceId && (
+                <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2.5 mb-4">
+                  <div className="text-[10px] font-mono text-foreground/50 uppercase tracking-wider mb-1">votre ID appareil</div>
+                  <button
+                    onClick={copyDeviceId}
+                    type="button"
+                    className="flex items-center gap-2 w-full group"
+                    title="Cliquez pour copier votre ID"
+                  >
+                    <code className="flex-1 text-[11px] font-mono text-primary break-all text-left">{deviceId.slice(0, 24)}…{deviceId.slice(-8)}</code>
+                    <span className="shrink-0 text-[9px] font-mono text-foreground/40 group-hover:text-primary transition-colors">
+                      {copied ? "✓ copié" : "copier"}
+                    </span>
+                  </button>
+                  <div className="text-[9px] font-mono text-foreground/30 mt-1.5">cet ID identifie votre appareil de façon unique et permanente. il est inclus automatiquement dans votre demande.</div>
+                </div>
+              )}
               <form onSubmit={handleRequest} className="space-y-3">
                 <div><label className="text-[10px] font-mono text-foreground/40 uppercase tracking-wider mb-1 block">votre nom *</label><input type="text" value={reqName} onChange={(e) => setReqName(e.target.value)} placeholder="ex: Mohamed Ali" required minLength={2} disabled={loading} className="w-full rounded-lg border border-border bg-secondary/30 px-4 py-2.5 text-[13px] font-mono text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition disabled:opacity-50" /></div>
                 <div><label className="text-[10px] font-mono text-foreground/40 uppercase tracking-wider mb-1 block">votre gmail * <span className="text-amber-400/60">(vrai compte — sera vérifié)</span></label><input type="email" value={reqEmail} onChange={(e) => setReqEmail(e.target.value)} placeholder="votre.vrai.compte@gmail.com" required pattern="[a-z0-9.]+@gmail\.com" disabled={loading} className="w-full rounded-lg border border-border bg-secondary/30 px-4 py-2.5 text-[13px] font-mono text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition disabled:opacity-50" /></div>
