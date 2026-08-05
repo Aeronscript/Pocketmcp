@@ -3,42 +3,191 @@
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 
-interface TempCode { code: string; createdAt: number; claimed: boolean; claimedAt?: number; label?: string; }
+interface TempCode { code: string; createdAt: number; claimed: boolean; claimedAt?: number; label?: string; claimedBy?: string; }
 interface AccessRequest { id: string; email: string; name: string; message: string; createdAt: number; status: "pending" | "approved" | "rejected"; generatedCode?: string; }
+interface User {
+  deviceId: string; code: string; claimedAt: number; banned: boolean;
+  bannedAt?: number; bannedReason?: string; features: string[];
+  lastSeen?: number; lastIP?: string; label?: string;
+}
+interface AdminDevice {
+  deviceId: string; claimedAt: number; active: boolean;
+  lastIP?: string; lastSeen?: number; label?: string;
+}
+interface Session {
+  sessionId: string; deviceId: string; role: string;
+  createdAt: number; expiresAt: number; lastIP?: string;
+}
 
-interface Props { adminCode: string; }
+interface AdminData {
+  users: User[];
+  adminDevices: AdminDevice[];
+  tempCodes: TempCode[];
+  sessions: Session[];
+}
 
-export function AdminCodeManager({ adminCode }: Props) {
+type Tab = "codes" | "users" | "devices" | "sessions";
+
+export function AdminCodeManager() {
+  const [tab, setTab] = useState<Tab>("codes");
   const [codes, setCodes] = useState<TempCode[]>([]);
   const [label, setLabel] = useState("");
   const [loading, setLoading] = useState(false);
   const [lastGenerated, setLastGenerated] = useState<string | null>(null);
   const [requests, setRequests] = useState<AccessRequest[]>([]);
+  const [adminData, setAdminData] = useState<AdminData | null>(null);
 
+  // Fetch codes (legacy)
   const fetchCodes = useCallback(async () => {
-    try { const res = await fetch("/api/site-auth/codes", { headers: { Authorization: `Bearer ${adminCode}` } }); const data = await res.json(); if (data.ok) setCodes(data.codes); } catch {}
-  }, [adminCode]);
+    try {
+      const res = await fetch("/api/site-auth/codes", { credentials: "same-origin" });
+      const data = await res.json();
+      if (data.ok) setCodes(data.codes);
+    } catch {}
+  }, []);
 
   const fetchRequests = useCallback(async () => {
-    try { const res = await fetch("/api/site-auth/requests", { headers: { Authorization: `Bearer ${adminCode}` } }); const data = await res.json(); if (data.ok) setRequests(data.requests); } catch {}
-  }, [adminCode]);
+    try {
+      const res = await fetch("/api/site-auth/requests", { credentials: "same-origin" });
+      const data = await res.json();
+      if (data.ok) setRequests(data.requests);
+    } catch {}
+  }, []);
 
-  useEffect(() => { fetchCodes(); fetchRequests(); const i = setInterval(() => { fetchCodes(); fetchRequests(); }, 5000); return () => clearInterval(i); }, []);
+  const fetchAdminData = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/users", { credentials: "same-origin" });
+      const data = await res.json();
+      if (data.ok) setAdminData(data);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    fetchCodes(); fetchRequests(); fetchAdminData();
+    const i = setInterval(() => {
+      fetchCodes(); fetchRequests(); fetchAdminData();
+    }, 5000);
+    return () => clearInterval(i);
+  }, []);
 
   const generate = async () => {
     setLoading(true);
-    try { const res = await fetch("/api/site-auth/generate", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${adminCode}` }, body: JSON.stringify({ label: label.trim() || undefined }) }); const data = await res.json(); if (data.ok) { setLastGenerated(data.code); setLabel(""); toast.success("code généré"); fetchCodes(); } else toast.error(data.error || "échec"); } catch { toast.error("erreur"); }
+    try {
+      const res = await fetch("/api/site-auth/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ label: label.trim() || undefined }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setLastGenerated(data.code);
+        setLabel("");
+        toast.success("code généré");
+        fetchCodes();
+      } else toast.error(data.error || "échec");
+    } catch { toast.error("erreur"); }
     setLoading(false);
   };
 
-  const revoke = async (code: string) => { try { await fetch("/api/site-auth/revoke", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${adminCode}` }, body: JSON.stringify({ code }) }); toast.success("code révoqué"); fetchCodes(); } catch { toast.error("erreur"); } };
+  const revoke = async (code: string) => {
+    try {
+      await fetch("/api/site-auth/revoke", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ code }),
+      });
+      toast.success("code révoqué");
+      fetchCodes();
+    } catch { toast.error("erreur"); }
+  };
 
   const approveRequest = async (requestId: string) => {
-    try { const res = await fetch("/api/site-auth/requests", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${adminCode}` }, body: JSON.stringify({ action: "approve", requestId }) }); const data = await res.json(); if (data.ok) { toast.success("demande approuvée"); if (data.mailtoUrl) window.open(data.mailtoUrl, "_blank"); fetchRequests(); fetchCodes(); } } catch { toast.error("erreur"); }
+    try {
+      const res = await fetch("/api/site-auth/requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ action: "approve", requestId }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        toast.success("demande approuvée");
+        if (data.mailtoUrl) window.open(data.mailtoUrl, "_blank");
+        fetchRequests(); fetchCodes();
+      }
+    } catch { toast.error("erreur"); }
   };
 
   const rejectRequest = async (requestId: string) => {
-    try { await fetch("/api/site-auth/requests", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${adminCode}` }, body: JSON.stringify({ action: "reject", requestId }) }); toast.success("demande refusée"); fetchRequests(); } catch { toast.error("erreur"); }
+    try {
+      await fetch("/api/site-auth/requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ action: "reject", requestId }),
+      });
+      toast.success("demande refusée");
+      fetchRequests();
+    } catch { toast.error("erreur"); }
+  };
+
+  const banUser = async (deviceId: string, reason?: string) => {
+    try {
+      const res = await fetch("/api/admin/ban", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ deviceId, reason }),
+      });
+      const data = await res.json();
+      if (data.ok) { toast.success("user banni"); fetchAdminData(); }
+      else toast.error(data.error || "échec");
+    } catch { toast.error("erreur"); }
+  };
+
+  const unbanUser = async (deviceId: string) => {
+    try {
+      const res = await fetch("/api/admin/unban", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ deviceId }),
+      });
+      const data = await res.json();
+      if (data.ok) { toast.success("user débanni"); fetchAdminData(); }
+      else toast.error(data.error || "échec");
+    } catch { toast.error("erreur"); }
+  };
+
+  const revokeAdminDevice = async (deviceId: string) => {
+    if (!confirm("Révoquer ce device admin ? Si c'est le tien, tu seras déconnecté.")) return;
+    try {
+      const res = await fetch("/api/admin/revoke-admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ deviceId }),
+      });
+      const data = await res.json();
+      if (data.ok) { toast.success("device admin révoqué"); fetchAdminData(); }
+      else toast.error(data.error || "échec");
+    } catch { toast.error("erreur"); }
+  };
+
+  const revokeSession = async (sessionId: string) => {
+    try {
+      const res = await fetch("/api/admin/sessions", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ sessionId }),
+      });
+      const data = await res.json();
+      if (data.ok) { toast.success("session révoquée"); fetchAdminData(); }
+      else toast.error(data.error || "échec");
+    } catch { toast.error("erreur"); }
   };
 
   const copyCode = (code: string) => { navigator.clipboard.writeText(code); toast.success("code copié"); };
@@ -50,18 +199,152 @@ export function AdminCodeManager({ adminCode }: Props) {
       <div className="text-[11px] font-mono text-primary mb-2 tracking-wider">CODES D'ACCÈS · ADMIN</div>
       <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight font-mono mb-3">gestion des codes</h1>
       <p className="text-[13px] sm:text-[14px] text-foreground/70 leading-relaxed mb-6 font-mono">générez des codes d'accès à usage unique. chaque code ne peut être utilisé qu'une seule fois par une seule personne.</p>
-      <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 sm:p-5 mb-6">
-        <h3 className="text-[13px] font-mono font-semibold text-primary mb-3">générer un nouveau code</h3>
-        <div className="flex flex-col sm:flex-row gap-2 mb-3">
-          <input type="text" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="label optionnel (ex: 'pote1')" className="flex-1 rounded-md border border-border bg-secondary/30 px-3 py-2 text-[12px] font-mono text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/30" />
-          <button onClick={generate} disabled={loading} className="shrink-0 rounded-md bg-primary px-4 py-2 text-[12px] font-mono font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors">{loading ? "..." : "générer"}</button>
-        </div>
-        {lastGenerated && (<div className="rounded-lg border border-primary/40 bg-[#0d1117] p-3 sm:p-4"><div className="text-[10px] font-mono text-foreground/50 mb-1">dernier code généré :</div><div className="flex items-center gap-2"><code className="flex-1 text-[14px] sm:text-[16px] font-mono font-semibold text-primary break-all">{lastGenerated}</code><button onClick={() => copyCode(lastGenerated)} className="shrink-0 rounded-md border border-border bg-secondary/40 px-2.5 py-1.5 text-[10px] font-mono hover:bg-secondary/60 transition-colors">copier</button></div></div>)}
+
+      {/* Tabs */}
+      <div className="flex gap-1 mb-6 border-b border-border/40">
+        {([
+          { id: "codes", label: `codes (${unclaimed.length} actifs)` },
+          { id: "users", label: `users (${adminData?.users.length || 0})` },
+          { id: "devices", label: `devices admin (${adminData?.adminDevices.filter(d => d.active).length || 0})` },
+          { id: "sessions", label: `sessions (${adminData?.sessions.length || 0})` },
+        ] as { id: Tab; label: string }[]).map(t => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`px-3 py-2 text-[12px] font-mono transition-colors border-b-2 ${
+              tab === t.id
+                ? "text-primary border-primary"
+                : "text-muted-foreground border-transparent hover:text-foreground"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
-      <h2 className="text-[14px] font-mono font-semibold text-foreground mb-3">codes non utilisés ({unclaimed.length})</h2>
-      {unclaimed.length === 0 ? (<div className="text-[12px] text-foreground/40 font-mono italic mb-6">aucun code en attente</div>) : (<div className="space-y-2 mb-6">{unclaimed.map((c) => (<div key={c.code} className="flex items-center gap-3 rounded-lg border border-border/40 bg-card p-3"><div className="flex-1 min-w-0"><code className="text-[12px] sm:text-[13px] font-mono text-primary break-all">{c.code}</code><div className="text-[10px] font-mono text-foreground/40 mt-0.5">créé: {new Date(c.createdAt).toLocaleString("fr-FR")}{c.label ? ` · ${c.label}` : ""}</div></div><button onClick={() => copyCode(c.code)} className="shrink-0 rounded-md border border-border bg-secondary/40 px-2 py-1 text-[10px] font-mono hover:bg-secondary/60 transition-colors">copier</button><button onClick={() => revoke(c.code)} className="shrink-0 rounded-md border border-rose-500/30 bg-rose-500/5 px-2 py-1 text-[10px] font-mono text-rose-400 hover:bg-rose-500/10 transition-colors">révoquer</button></div>))}</div>)}
-      <h2 className="text-[14px] font-mono font-semibold text-foreground mb-3">codes utilisés ({claimed.length})</h2>
-      {claimed.length === 0 ? (<div className="text-[12px] text-foreground/40 font-mono italic">aucun code utilisé</div>) : (<div className="space-y-2">{claimed.map((c) => (<div key={c.code} className="flex items-center gap-3 rounded-lg border border-border/40 bg-secondary/20 p-3 opacity-60"><div className="flex-1 min-w-0"><code className="text-[12px] font-mono text-foreground/60 break-all">{c.code}</code><div className="text-[10px] font-mono text-foreground/40 mt-0.5">utilisé: {c.claimedAt ? new Date(c.claimedAt).toLocaleString("fr-FR") : "?"}{c.label ? ` · ${c.label}` : ""}</div></div><span className="shrink-0 text-[10px] font-mono text-amber-400/60">● utilisé</span></div>))}</div>)}
+
+      {tab === "codes" && (
+        <>
+          <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 sm:p-5 mb-6">
+            <h3 className="text-[13px] font-mono font-semibold text-primary mb-3">générer un nouveau code</h3>
+            <div className="flex flex-col sm:flex-row gap-2 mb-3">
+              <input type="text" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="label optionnel (ex: 'pote1')" className="flex-1 rounded-md border border-border bg-secondary/30 px-3 py-2 text-[12px] font-mono text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/30" />
+              <button onClick={generate} disabled={loading} className="shrink-0 rounded-md bg-primary px-4 py-2 text-[12px] font-mono font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors">{loading ? "..." : "générer"}</button>
+            </div>
+            {lastGenerated && (<div className="rounded-lg border border-primary/40 bg-[#0d1117] p-3 sm:p-4"><div className="text-[10px] font-mono text-foreground/50 mb-1">dernier code généré :</div><div className="flex items-center gap-2"><code className="flex-1 text-[14px] sm:text-[16px] font-mono font-semibold text-primary break-all">{lastGenerated}</code><button onClick={() => copyCode(lastGenerated)} className="shrink-0 rounded-md border border-border bg-secondary/40 px-2.5 py-1.5 text-[10px] font-mono hover:bg-secondary/60 transition-colors">copier</button></div></div>)}
+          </div>
+          <h2 className="text-[14px] font-mono font-semibold text-foreground mb-3">codes non utilisés ({unclaimed.length})</h2>
+          {unclaimed.length === 0 ? (<div className="text-[12px] text-foreground/40 font-mono italic mb-6">aucun code en attente</div>) : (<div className="space-y-2 mb-6">{unclaimed.map((c) => (<div key={c.code} className="flex items-center gap-3 rounded-lg border border-border/40 bg-card p-3"><div className="flex-1 min-w-0"><code className="text-[12px] sm:text-[13px] font-mono text-primary break-all">{c.code}</code><div className="text-[10px] font-mono text-foreground/40 mt-0.5">créé: {new Date(c.createdAt).toLocaleString("fr-FR")}{c.label ? ` · ${c.label}` : ""}</div></div><button onClick={() => copyCode(c.code)} className="shrink-0 rounded-md border border-border bg-secondary/40 px-2 py-1 text-[10px] font-mono hover:bg-secondary/60 transition-colors">copier</button><button onClick={() => revoke(c.code)} className="shrink-0 rounded-md border border-rose-500/30 bg-rose-500/5 px-2 py-1 text-[10px] font-mono text-rose-400 hover:bg-rose-500/10 transition-colors">révoquer</button></div>))}</div>)}
+          <h2 className="text-[14px] font-mono font-semibold text-foreground mb-3">codes utilisés ({claimed.length})</h2>
+          {claimed.length === 0 ? (<div className="text-[12px] text-foreground/40 font-mono italic">aucun code utilisé</div>) : (<div className="space-y-2">{claimed.map((c) => (<div key={c.code} className="flex items-center gap-3 rounded-lg border border-border/40 bg-secondary/20 p-3 opacity-60"><div className="flex-1 min-w-0"><code className="text-[12px] font-mono text-foreground/60 break-all">{c.code}</code><div className="text-[10px] font-mono text-foreground/40 mt-0.5">utilisé: {c.claimedAt ? new Date(c.claimedAt).toLocaleString("fr-FR") : "?"}{c.label ? ` · ${c.label}` : ""}</div></div><span className="shrink-0 text-[10px] font-mono text-amber-400/60">● utilisé</span></div>))}</div>)}
+        </>
+      )}
+
+      {tab === "users" && (
+        <div>
+          <h2 className="text-[14px] font-mono font-semibold text-foreground mb-3">utilisateurs ({adminData?.users.length || 0})</h2>
+          {(adminData?.users.length || 0) === 0 ? (
+            <div className="text-[12px] text-foreground/40 font-mono italic">aucun utilisateur enregistré</div>
+          ) : (
+            <div className="space-y-2">
+              {adminData!.users.map(u => (
+                <div key={u.deviceId} className={`rounded-lg border p-3 ${u.banned ? "border-rose-500/30 bg-rose-500/5" : "border-border/40 bg-card"}`}>
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <code className="text-[11px] font-mono text-foreground/80 break-all">{u.deviceId.slice(0, 24)}...</code>
+                        {u.banned && <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400">banned</span>}
+                        {u.features.length > 0 && <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-primary/10 text-primary">{u.features.length} features</span>}
+                      </div>
+                      <div className="text-[10px] font-mono text-foreground/40 mt-1">
+                        code: {u.code} · claim: {new Date(u.claimedAt).toLocaleString("fr-FR")}
+                      </div>
+                      <div className="text-[10px] font-mono text-foreground/40 mt-0.5">
+                        last seen: {u.lastSeen ? new Date(u.lastSeen).toLocaleString("fr-FR") : "?"}
+                        {u.lastIP ? ` · IP: ${u.lastIP}` : ""}
+                      </div>
+                    </div>
+                    <div className="flex gap-1 shrink-0">
+                      {u.banned ? (
+                        <button onClick={() => unbanUser(u.deviceId)} className="rounded-md border border-emerald-500/30 bg-emerald-500/5 px-2 py-1 text-[10px] font-mono text-emerald-400 hover:bg-emerald-500/10 transition-colors">débannir</button>
+                      ) : (
+                        <button onClick={() => banUser(u.deviceId, "manuel")} className="rounded-md border border-rose-500/30 bg-rose-500/5 px-2 py-1 text-[10px] font-mono text-rose-400 hover:bg-rose-500/10 transition-colors">bannir</button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "devices" && (
+        <div>
+          <h2 className="text-[14px] font-mono font-semibold text-foreground mb-3">devices admin ({adminData?.adminDevices.length || 0})</h2>
+          <p className="text-[11px] font-mono text-foreground/50 mb-3">un seul device peut être admin à la fois. pour en changer, révoque l'actuel puis re-connecte-toi avec le code admin sur le nouveau device.</p>
+          {(adminData?.adminDevices.length || 0) === 0 ? (
+            <div className="text-[12px] text-foreground/40 font-mono italic">aucun device admin</div>
+          ) : (
+            <div className="space-y-2">
+              {adminData!.adminDevices.map(d => (
+                <div key={d.deviceId} className={`rounded-lg border p-3 ${d.active ? "border-primary/30 bg-primary/5" : "border-border/40 bg-secondary/20 opacity-60"}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <code className="text-[11px] font-mono text-foreground/80 break-all">{d.deviceId.slice(0, 24)}...</code>
+                        {d.active && <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-primary/10 text-primary">actif</span>}
+                      </div>
+                      <div className="text-[10px] font-mono text-foreground/40 mt-1">
+                        claim: {new Date(d.claimedAt).toLocaleString("fr-FR")}
+                      </div>
+                      <div className="text-[10px] font-mono text-foreground/40 mt-0.5">
+                        last seen: {d.lastSeen ? new Date(d.lastSeen).toLocaleString("fr-FR") : "?"}
+                        {d.lastIP ? ` · IP: ${d.lastIP}` : ""}
+                      </div>
+                    </div>
+                    {d.active && (
+                      <button onClick={() => revokeAdminDevice(d.deviceId)} className="shrink-0 rounded-md border border-rose-500/30 bg-rose-500/5 px-2 py-1 text-[10px] font-mono text-rose-400 hover:bg-rose-500/10 transition-colors">révoquer</button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "sessions" && (
+        <div>
+          <h2 className="text-[14px] font-mono font-semibold text-foreground mb-3">sessions actives ({adminData?.sessions.length || 0})</h2>
+          {(adminData?.sessions.length || 0) === 0 ? (
+            <div className="text-[12px] text-foreground/40 font-mono italic">aucune session active</div>
+          ) : (
+            <div className="space-y-2">
+              {adminData!.sessions.map(s => (
+                <div key={s.sessionId} className="rounded-lg border border-border/40 bg-card p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <code className="text-[11px] font-mono text-foreground/80 break-all">{s.sessionId.slice(0, 24)}...</code>
+                        <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${s.role === "admin" ? "bg-primary/10 text-primary" : "bg-secondary/40 text-foreground/60"}`}>{s.role}</span>
+                      </div>
+                      <div className="text-[10px] font-mono text-foreground/40 mt-1">
+                        device: {s.deviceId.slice(0, 24)}...
+                      </div>
+                      <div className="text-[10px] font-mono text-foreground/40 mt-0.5">
+                        créée: {new Date(s.createdAt).toLocaleString("fr-FR")} · expire: {new Date(s.expiresAt).toLocaleString("fr-FR")}
+                        {s.lastIP ? ` · IP: ${s.lastIP}` : ""}
+                      </div>
+                    </div>
+                    <button onClick={() => revokeSession(s.sessionId)} className="shrink-0 rounded-md border border-rose-500/30 bg-rose-500/5 px-2 py-1 text-[10px] font-mono text-rose-400 hover:bg-rose-500/10 transition-colors">révoquer</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <h2 className="text-[14px] font-mono font-semibold text-foreground mt-8 mb-3">demandes d'accès ({requests.filter(r => r.status === "pending").length} en attente)</h2>
       {requests.length === 0 ? (<div className="text-[12px] text-foreground/40 font-mono italic">aucune demande d'accès</div>) : (<div className="space-y-2">{requests.sort((a, b) => b.createdAt - a.createdAt).map((r) => (<div key={r.id} className={`rounded-lg border p-3 ${r.status === "pending" ? "border-primary/30 bg-primary/5" : r.status === "approved" ? "border-emerald-500/20 bg-emerald-500/5 opacity-70" : "border-rose-500/20 bg-rose-500/5 opacity-50"}`}><div className="flex items-start justify-between gap-3 mb-2"><div className="min-w-0 flex-1"><div className="flex items-center gap-2 flex-wrap"><span className="text-[13px] font-mono font-semibold text-foreground">{r.name}</span><span className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${r.status === "pending" ? "bg-primary/10 text-primary" : r.status === "approved" ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"}`}>{r.status === "pending" ? "● en attente" : r.status === "approved" ? "✓ approuvé" : "✗ refusé"}</span></div><div className="text-[11px] font-mono text-foreground/60 mt-1">{r.email}</div>{r.message && (<div className="text-[11px] font-mono text-foreground/50 mt-1.5 p-2 rounded bg-secondary/30">"{r.message}"</div>)}</div>{r.status === "pending" && (<div className="flex flex-col gap-1.5 shrink-0"><button onClick={() => approveRequest(r.id)} className="rounded-md bg-primary px-3 py-1.5 text-[11px] font-mono font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">✓ approuver</button><button onClick={() => rejectRequest(r.id)} className="rounded-md border border-rose-500/30 bg-rose-500/5 px-3 py-1.5 text-[11px] font-mono text-rose-400 hover:bg-rose-500/10 transition-colors">✗ refuser</button></div>)}</div></div>))}</div>)}
     </div>
