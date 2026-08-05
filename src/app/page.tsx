@@ -16,7 +16,7 @@ import { useAuth } from "@/components/pocketmcp/use-auth";
 import { AdminCodeManager } from "@/components/pocketmcp/admin-code-manager";
 
 export default function Home() {
-  const { isLoggedIn, role, loading, login, logout } = useAuth();
+  const { isLoggedIn, role, deviceId, loading, login, logout } = useAuth();
   const [view, setView] = useState<"home" | "docs">("home");
 
   useEffect(() => {
@@ -36,7 +36,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <Header onLogout={logout} role={role} />
+      <Header onLogout={logout} role={role} deviceId={deviceId} />
       <main className="flex-1">
         <Hero />
         <Dashboard />
