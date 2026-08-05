@@ -16,7 +16,7 @@ import { useAuth } from "@/components/pocketmcp/use-auth";
 import { AdminCodeManager } from "@/components/pocketmcp/admin-code-manager";
 
 export default function Home() {
-  const { isLoggedIn, role, code, loading, login, logout } = useAuth();
+  const { isLoggedIn, role, loading, login, logout } = useAuth();
   const [view, setView] = useState<"home" | "docs">("home");
 
   useEffect(() => {
@@ -28,10 +28,10 @@ export default function Home() {
   useEffect(() => { document.body.style.overflow = view === "docs" ? "hidden" : ""; return () => { document.body.style.overflow = ""; }; }, [view]);
 
   if (loading) return (<div className="min-h-screen flex items-center justify-center bg-background"><div className="text-primary font-mono text-sm animate-pulse">loading...</div></div>);
-  if (!isLoggedIn || !code) return <LoginOverlay onLogin={login} />;
+  if (!isLoggedIn) return <LoginOverlay onLogin={login} />;
 
   if (view === "docs") {
-    return <DocsPage onBack={() => setView("home")} isAdmin={role === "admin"} adminCode={code} AdminComponent={role === "admin" ? <AdminCodeManager adminCode={code} /> : null} />;
+    return <DocsPage onBack={() => setView("home")} isAdmin={role === "admin"} AdminComponent={role === "admin" ? <AdminCodeManager /> : null} />;
   }
 
   return (
