@@ -212,30 +212,74 @@ export function getServerIP(req: Request): string {
 // ─── Rate limiting serveur (P2 #9) ──────────────────────────────
 // S'applique UNIQUEMENT aux échecs d'auth (tentatives de pairCode invalides
 // sur /api/register, ou codes admin invalides sur endpoints admin).
-// 100 req/10min = ~10 essais/min, suffisant pour légitime, cassant pour brute force.
-export const SERVER_RATE_LIMIT = 100;
+//
+// BÊTA : 500 req/10min = ~50 essais/min avant blocage.
+// Confortable pour les users légitimes (typos, tests multiples), tout en
+// cassant le brute-force. Les codes font 128 bits d'entropie (impossible à
+// brute-forcer de toute façon), le rate limit protège surtout contre le spam/DoS.
+//
+// Backoff intelligent (progressif) :
+// - 1re fois bloqué : 2 min
+// - 2e fois bloqué : 5 min
+// - 3e fois et + : 15 min
+// L'IP doit être "sage" pendant 1h pour reset le compteur de blocages.
+export const SERVER_RATE_LIMIT = 500;
 export const SERVER_RATE_WINDOW = 10 * 60 * 1000;
-export const SERVER_RATE_BLOCK = 2 * 60 * 1000;
-const serverAttempts = new Map<string, { count: number; firstAttempt: number; blockedUntil?: number }>();
+const SERVER_RATE_BLOCK_LEVELS = [2 * 60 * 1000, 5 * 60 * 1000, 15 * 60 * 1000]; // 2min, 5min, 15min
+const SERVER_RATE_BLOCK_RESET = 60 * 60 * 1000; // reset compteur blocages après 1h sans spam
+
+interface ServerAttempt {
+  count: number;
+  firstAttempt: number;
+  blockedUntil?: number;
+  blockLevel?: number;       // 0, 1, 2 (index dans BLOCK_LEVELS)
+  lastBlockAt?: number;      // pour reset le level après 1h
+}
+const serverAttempts = new Map<string, ServerAttempt>();
 
 export function checkServerRateLimit(ip: string): { allowed: boolean; retryAfter?: number } {
   const now = Date.now();
-  const record = serverAttempts.get(ip);
+  let record = serverAttempts.get(ip);
 
+  // Si bloqué, vérifie si le blocage est encore actif
   if (record?.blockedUntil && now < record.blockedUntil) {
     return { allowed: false, retryAfter: Math.ceil((record.blockedUntil - now) / 1000) };
   }
+
+  // Si le blocage est terminé, on supprime le record (nouvelle fenêtre)
   if (record?.blockedUntil && now >= record.blockedUntil) {
-    serverAttempts.delete(ip);
+    // Si le dernier blocage remonte à plus d'1h, reset le level
+    if (record.lastBlockAt && (now - record.lastBlockAt) > SERVER_RATE_BLOCK_RESET) {
+      serverAttempts.delete(ip);
+      record = undefined;
+    } else {
+      // Sinon on garde le record mais reset le compteur d'essais
+      record.count = 0;
+      record.firstAttempt = now;
+      record.blockedUntil = undefined;
+    }
   }
+
+  // Nouvelle fenêtre
   if (!record || now - record.firstAttempt > SERVER_RATE_WINDOW) {
-    serverAttempts.set(ip, { count: 1, firstAttempt: now });
+    serverAttempts.set(ip, {
+      count: 1,
+      firstAttempt: now,
+      blockLevel: record?.blockLevel || 0,
+      lastBlockAt: record?.lastBlockAt,
+    });
     return { allowed: true };
   }
+
   record.count++;
   if (record.count > SERVER_RATE_LIMIT) {
-    record.blockedUntil = now + SERVER_RATE_BLOCK;
-    return { allowed: false, retryAfter: Math.ceil(SERVER_RATE_BLOCK / 1000) };
+    // Backoff progressif : niveau 0 (2min) → 1 (5min) → 2 (15min)
+    const level = Math.min((record.blockLevel || 0), SERVER_RATE_BLOCK_LEVELS.length - 1);
+    const blockDuration = SERVER_RATE_BLOCK_LEVELS[level];
+    record.blockedUntil = now + blockDuration;
+    record.lastBlockAt = now;
+    record.blockLevel = Math.min(level + 1, SERVER_RATE_BLOCK_LEVELS.length - 1);
+    return { allowed: false, retryAfter: Math.ceil(blockDuration / 1000) };
   }
   return { allowed: true };
 }
