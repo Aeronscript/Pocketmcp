@@ -1,20 +1,39 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 
 interface Props {
   onLogout?: () => void;
   role?: "admin" | "user" | null;
+  deviceId?: string | null;
 }
 
-export function Header({ onLogout, role }: Props = {}) {
+export function Header({ onLogout, role, deviceId }: Props = {}) {
   const [scrolled, setScrolled] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 16);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  const copyDeviceId = async () => {
+    if (!deviceId) return;
+    try {
+      await navigator.clipboard.writeText(deviceId);
+      setCopied(true);
+      toast.success("ID copié dans le presse-papier");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("impossible de copier");
+    }
+  };
+
+  // Short ID : 12 premiers chars pour l'affichage
+  const shortId = deviceId ? deviceId.slice(0, 12) : "";
+  const isAdmin = role === "admin";
 
   return (
     <header className={`sticky top-0 z-40 transition-all duration-300 ${scrolled ? "bg-background/80 backdrop-blur-xl border-b border-border/60" : "bg-transparent border-b border-transparent"}`}>
@@ -36,6 +55,38 @@ export function Header({ onLogout, role }: Props = {}) {
             ))}
           </nav>
           <div className="flex items-center gap-2">
+            {/* Device ID : affiché avec style spécial pour admin */}
+            {deviceId && (
+              <button
+                onClick={copyDeviceId}
+                title={`Cliquez pour copier votre ID complet :\n${deviceId}`}
+                className={`inline-flex items-center gap-1.5 h-7 px-2.5 text-[10px] sm:text-[11px] font-mono rounded-full border transition-all ${
+                  isAdmin
+                    ? "bg-amber-500/10 text-amber-400 border-amber-500/30 hover:bg-amber-500/20 hover:border-amber-500/50"
+                    : "bg-secondary/40 text-foreground/60 border-border/60 hover:bg-secondary/60 hover:text-foreground"
+                }`}
+              >
+                {isAdmin && (
+                  <span className="inline-flex items-center gap-1">
+                    <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                    </svg>
+                    <span className="font-bold uppercase tracking-wider hidden sm:inline">admin</span>
+                  </span>
+                )}
+                <span className="font-mono">{shortId}…</span>
+                <svg viewBox="0 0 24 24" className={`h-3 w-3 transition-transform ${copied ? "scale-110" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  {copied ? (
+                    <polyline points="20 6 9 17 4 12" />
+                  ) : (
+                    <>
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                    </>
+                  )}
+                </svg>
+              </button>
+            )}
             <span className="hidden sm:inline-flex items-center gap-1.5 h-7 px-2.5 text-[11px] font-mono text-primary bg-primary/10 rounded-full border border-primary/20"><span className="h-1.5 w-1.5 rounded-full bg-primary pulse-green" />v0.3.0</span>
             <a href="#setup" className="hidden sm:inline-flex items-center gap-1.5 h-8 sm:h-9 px-3 sm:px-3.5 text-[12px] sm:text-[13px] font-medium text-primary-foreground bg-primary hover:bg-primary/90 rounded-md transition-colors font-mono">$ install</a>
             {onLogout && (
