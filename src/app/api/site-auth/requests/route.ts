@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { join } from "path";
 import { readFileSync, writeFileSync, existsSync } from "fs";
-import { loadAuth, saveAuth, hashCode, isValidCode } from "@/lib/auth-codes";
+import { requireAdmin } from "@/lib/admin-auth";
+import { loadAuth, saveAuth } from "@/lib/auth-codes";
 
 const REQUESTS_FILE = join(process.cwd(), "data", "access-requests.json");
 interface AccessRequest {
@@ -23,28 +24,24 @@ function saveRequests(r: AccessRequest[]) {
 }
 
 export async function GET(req: NextRequest) {
-  const adminCode = req.headers.get("Authorization")?.slice(7) || "";
-  const auth = loadAuth();
-  if (!isValidCode(adminCode) || hashCode(adminCode) !== auth.adminHash) {
-    return NextResponse.json({ ok: false, error: "admin requis" }, { status: 403 });
-  }
+  const auth = requireAdmin(req);
+  if (!auth.ok) return auth.response;
   return NextResponse.json({ ok: true, requests: loadRequests() });
 }
 
 export async function POST(req: NextRequest) {
-  const adminCode = req.headers.get("Authorization")?.slice(7) || "";
-  const auth = loadAuth();
-  if (!isValidCode(adminCode) || hashCode(adminCode) !== auth.adminHash) {
-    return NextResponse.json({ ok: false, error: "admin requis" }, { status: 403 });
-  }
+  const auth = requireAdmin(req);
+  if (!auth.ok) return auth.response;
+
   const { action, requestId } = await req.json();
   const requests = loadRequests();
   const request = requests.find((r) => r.id === requestId);
   if (!request) return NextResponse.json({ ok: false, error: "introuvable" }, { status: 404 });
   if (action === "approve") {
     const code = "pmcp_" + randomBytes(6).toString("hex");
-    auth.tempCodes.push({ code, createdAt: Date.now(), claimed: false, label: `${request.name} (${request.email})` });
-    saveAuth(auth);
+    const data = loadAuth();
+    data.tempCodes.push({ code, createdAt: Date.now(), claimed: false, label: `${request.name} (${request.email})` });
+    saveAuth(data);
     request.status = "approved";
     request.generatedCode = code;
     saveRequests(requests);
