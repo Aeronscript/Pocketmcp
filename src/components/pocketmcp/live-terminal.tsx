@@ -122,14 +122,14 @@ export function LiveTerminal({ serverUrl = "http://localhost:16384" }: Props) {
         const res = await fetch(`${serverUrl}/health`, { signal: AbortSignal.timeout(2000) });
         if (res.ok) {
           const data = await res.json();
-          await typeLine(term, `✓ connected · ${data.clients} client(s) · uptime ${Math.floor(data.uptime)}s\r\n`, COLORS.green, 40);
+          await typeLine(term, `[ok] connected · ${data.clients} client(s) · uptime ${Math.floor(data.uptime)}s\r\n`, COLORS.green, 40);
           setConnected(true);
           setStats({ clients: data.clients, uptime: Math.floor(data.uptime) });
         } else {
           throw new Error("not ok");
         }
       } catch {
-        await typeLine(term, "✗ serveur pocketmcp injoignable sur localhost:16384\r\n", COLORS.red, 40);
+        await typeLine(term, "[err] serveur pocketmcp injoignable sur localhost:16384\r\n", COLORS.red, 40);
         await typeLine(term, "  démarrez-le avec: cd ~/pocketmcp && bun run index.min.js\r\n", COLORS.dim, 30);
         await typeLine(term, "  (le terminal affichera les logs en direct une fois connecté)\r\n", COLORS.dim, 30);
       }
@@ -305,9 +305,9 @@ export function LiveTerminal({ serverUrl = "http://localhost:16384" }: Props) {
       try {
         const res = await fetch(`${serverUrl}/health`);
         const data = await res.json();
-        term.write(`${COLORS.green}✓${COLORS.reset} ok: ${data.ok} · port: ${data.port} · clients: ${data.clients} · uptime: ${Math.floor(data.uptime)}s\r\n`);
+        term.write(`${COLORS.green}[ok]${COLORS.reset} ok: ${data.ok} · port: ${data.port} · clients: ${data.clients} · uptime: ${Math.floor(data.uptime)}s\r\n`);
       } catch {
-        term.write(`${COLORS.red}✗${COLORS.reset} serveur injoignable\r\n`);
+        term.write(`${COLORS.red}[err]${COLORS.reset} serveur injoignable\r\n`);
       }
     } else if (cmdName === "clients") {
       term.write(`${COLORS.dim}→ fetching clients...${COLORS.reset}\r\n`);
@@ -316,16 +316,16 @@ export function LiveTerminal({ serverUrl = "http://localhost:16384" }: Props) {
         const data = await res.json();
         const online = (data.clients || []).filter((c: any) => c.online);
         if (online.length === 0) {
-          term.write(`${COLORS.amber}⚠${COLORS.reset} aucun client connecté. lancez le bridge dans roblox.\r\n`);
+          term.write(`${COLORS.amber}[warn]${COLORS.reset} aucun client connecté. lancez le bridge dans roblox.\r\n`);
         } else {
-          term.write(`${COLORS.green}✓${COLORS.reset} ${online.length} client(s) connecté(s):\r\n`);
+          term.write(`${COLORS.green}[ok]${COLORS.reset} ${online.length} client(s) connecté(s):\r\n`);
           for (const c of online) {
             term.write(`  ${COLORS.green}●${COLORS.reset} ${COLORS.bold}${c.playerName}${COLORS.reset} `);
             term.write(`${COLORS.dim}(${c.clientId})${COLORS.reset} · ${c.executor} · ${c.transport}\r\n`);
           }
         }
       } catch {
-        term.write(`${COLORS.red}✗${COLORS.reset} erreur lors du fetch\r\n`);
+        term.write(`${COLORS.red}[err]${COLORS.reset} erreur lors du fetch\r\n`);
       }
     } else if (cmdName === "logs") {
       term.write(`${COLORS.dim}→ fetching logs...${COLORS.reset}\r\n`);
@@ -345,7 +345,7 @@ export function LiveTerminal({ serverUrl = "http://localhost:16384" }: Props) {
           }
         }
       } catch {
-        term.write(`${COLORS.red}✗${COLORS.reset} erreur lors du fetch\r\n`);
+        term.write(`${COLORS.red}[err]${COLORS.reset} erreur lors du fetch\r\n`);
       }
     } else if (cmdName === "execute") {
       const code = args.join(" ");
@@ -363,7 +363,7 @@ export function LiveTerminal({ serverUrl = "http://localhost:16384" }: Props) {
         });
         const data = await res.json();
         if (data.ok && data.result?.ok) {
-          term.write(`${COLORS.green}✓${COLORS.reset} exécuté en ${Date.now() % 1000}ms\r\n`);
+          term.write(`${COLORS.green}[ok]${COLORS.reset} exécuté en ${Date.now() % 1000}ms\r\n`);
           if (data.result.logs && data.result.logs.length > 0) {
             term.write(`${COLORS.dim}── logs ──${COLORS.reset}\r\n`);
             for (const l of data.result.logs) {
@@ -371,13 +371,13 @@ export function LiveTerminal({ serverUrl = "http://localhost:16384" }: Props) {
             }
           }
         } else {
-          term.write(`${COLORS.red}✗${COLORS.reset} échec: ${data.result?.error || data.error || "unknown"}\r\n`);
+          term.write(`${COLORS.red}[err]${COLORS.reset} échec: ${data.result?.error || data.error || "unknown"}\r\n`);
         }
       } catch (e: any) {
-        term.write(`${COLORS.red}✗${COLORS.reset} erreur: ${e.message}\r\n`);
+        term.write(`${COLORS.red}[err]${COLORS.reset} erreur: ${e.message}\r\n`);
       }
     } else if (cmdName === "exit") {
-      term.write(`${COLORS.dim}au revoir 👋${COLORS.reset}\r\n`);
+      term.write(`${COLORS.dim}au revoir${COLORS.reset}\r\n`);
     } else {
       term.write(`${COLORS.red}commande inconnue: ${cmdName}${COLORS.reset}\r\n`);
       term.write(`${COLORS.dim}tapez "help" pour voir les commandes${COLORS.reset}\r\n`);
