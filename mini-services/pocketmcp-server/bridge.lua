@@ -88,6 +88,7 @@ local hPlayer = myRequire("handlers.player")
 local hScan = myRequire("handlers.scan_exploit")
 local hRace = myRequire("handlers.scan_race")
 local hTrust = myRequire("handlers.scan_trust")
+local hUi = myRequire("handlers.ui_inject")
 
 local http = myRequire("http")
 local websocket = myRequire("websocket")
@@ -105,6 +106,7 @@ local handlers = {
     scan_exploit = hScan.scan_exploit,
     scan_race = hRace.scan_race,
     scan_trust = hTrust.scan_trust,
+    ui_inject = hUi.ui_inject,
     -- screenshot (inline car dépend d'ENV seulement)
     screenshot = function(cmd)
         if ENV.isSupported("screenshot") then
@@ -218,6 +220,11 @@ state._pollingThread = nil
 -- ─── Démarrage ───────────────────────────────────────────────
 register()
 
+-- CLT-004 fix : config.FORCE_HTTP est désormais honoré.
+-- Priorités (du plus fort au plus faible) :
+--   1. config.FORCE_WS = true → WebSocket forcé (override tout)
+--   2. config.FORCE_HTTP = true → HTTP polling forcé (default)
+--   3. sinon → auto-détection (essaie WS, fallback HTTP)
 if config.FORCE_WS then
     logger.print("WebSocket forcé (EnableWebSocket=true)")
     if not websocket.tryWebSocket() then
@@ -227,6 +234,11 @@ if config.FORCE_WS then
     else
         state.transport = "WebSocket"
     end
+elseif config.FORCE_HTTP then
+    -- CLT-004 fix : FORCE_HTTP honoré — skip WebSocket, HTTP polling direct.
+    logger.print("HTTP polling forcé (FORCE_HTTP=true, le plus fiable sur mobile)")
+    state.transport = "HTTP Polling"
+    http.startHttpPolling()
 else
     task.spawn(function()
         local wsOk = websocket.tryWebSocket()
