@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
+import { Icon } from "./icon";
 
 const INSTALL_ONE_LINE = `bash <(curl -fsSL https://pocketmcp.onrender.com/api/install.sh?code=VOTRE_CODE_SITE)`;
 
@@ -113,7 +114,7 @@ export function SetupGuide() {
             <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
               <div className="min-w-0 flex-1">
                 <h3 className="text-[14px] sm:text-base font-mono font-semibold text-primary flex items-center gap-2">
-                  <span>⚡</span>
+                  <Icon name="zap" className="h-4 w-4" />
                   install en 1 commande
                 </h3>
                 <p className="mt-1 text-[11px] sm:text-[12px] text-muted-foreground font-mono">
@@ -231,7 +232,7 @@ export function SetupGuide() {
                     </pre>
                   </div>
                   <div className="mt-2 flex items-start gap-2 text-[10px] sm:text-[11px] text-muted-foreground font-mono">
-                    <span className="text-amber-400/70 shrink-0">⚠</span>
+                    <Icon name="alert" className="h-4 w-4 text-amber-400/70 shrink-0" />
                     <span>{step.note}</span>
                   </div>
                 </div>
