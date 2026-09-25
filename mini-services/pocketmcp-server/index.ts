@@ -51,12 +51,36 @@ async function handleRequest(req: Request): Promise<Response> {
   }
 
   if (path === "/script.luau" && method === "GET") {
+    // Fix : injecte le pairCode courant dans le bridge pour appairage auto.
+    // Avant : le bridge recevait __PAIR_CODE__ = nil → register sans code.
+    // Maintenant : on remplace __PAIR_CODE__ par le code courant.
+    const builtPath = join(__dirname, "bridge.built.lua");
     const bridgePath = join(__dirname, "bridge.lua");
-    if (!existsSync(bridgePath)) {
-      return new Response("-- bridge.lua introuvable", { status: 404 });
+    const scriptPath = existsSync(builtPath) ? builtPath : bridgePath;
+    if (!existsSync(scriptPath)) {
+      return new Response("-- bridge introuvable", { status: 404 });
     }
-    const code = readFileSync(bridgePath, "utf-8");
-    return new Response(code, {
+    let script = readFileSync(scriptPath, "utf-8");
+    // Récupère le pairCode courant depuis la Map tempCodes (serveur MCP)
+    // OU depuis data/auth-codes.json (site web)
+    let pairCode = "";
+    for (const [code, val] of tempCodes) {
+      if (!val.claimedBy) { pairCode = code; break; }
+    }
+    // Si pas de pairCode dans tempCodes, lit depuis data/auth-codes.json
+    if (!pairCode) {
+      try {
+        const authFile = join(__dirname, "..", "..", "data", "auth-codes.json");
+        if (existsSync(authFile)) {
+          const authData = JSON.parse(readFileSync(authFile, "utf-8"));
+          for (const tc of authData.tempCodes || []) {
+            if (!tc.claimed) { pairCode = tc.code; break; }
+          }
+        }
+      } catch {}
+    }
+    script = script.replace(/= __PAIR_CODE__/g, `= "${pairCode}"`);
+    return new Response(script, {
       headers: { "Content-Type": "text/plain; charset=utf-8", ...corsHeaders(req) },
     });
   }
@@ -413,6 +437,31 @@ async function handleRequest(req: Request): Promise<Response> {
 const server = Bun.serve({
   port: PORT, hostname: HOST, fetch: handleRequest,
 });
+
+// Fix : synchronise les codes pmcp_ depuis data/auth-codes.json (site web)
+// vers la Map tempCodes (serveur MCP). Sans ça, les codes générés par l'admin
+// sur le site web ne sont pas reconnus par le serveur MCP.
+try {
+  const authFile = join(__dirname, "..", "..", "data", "auth-codes.json");
+  if (existsSync(authFile)) {
+    const authData = JSON.parse(readFileSync(authFile, "utf-8"));
+    let synced = 0;
+    for (const tc of authData.tempCodes || []) {
+      if (!tempCodes.has(tc.code)) {
+        tempCodes.set(tc.code, {
+          createdAt: tc.createdAt || Date.now(),
+          claimedBy: tc.claimed ? "site_web" : null,
+          label: tc.label,
+          ttl: MAX_TTL,
+        });
+        synced++;
+      }
+    }
+    if (synced > 0) log("info", "auth", `${synced} code(s) pmcp_ synchronisé(s) depuis le site web`);
+  }
+} catch (e: any) {
+  log("warn", "auth", `Sync codes depuis site web échouée: ${e.message}`);
+}
 
 log("success", "server", `pocketmcp v0.3.1 démarré sur http://${HOST}:${PORT}`);
 log("info", "server", `Dashboard: http://localhost:${PORT}/`);
