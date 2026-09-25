@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isValidCode, extractCode } from "@/lib/auth-codes";
+import { isValidCode, extractCode, validateCodeDetailed } from "@/lib/auth-codes";
 
 // GET /api/install.sh?code=xxx
 // Protégé : nécessite un code valide (admin ou temporaire)
@@ -119,10 +119,22 @@ echo ""
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const code = extractCode(url.searchParams, req.headers.get("Authorization"));
-  if (!isValidCode(code)) {
+
+  // SRV-002 fix : distinguer missing/invalid/expired pour le diagnostic.
+  // Avant : tout renvoyait le même 403 opaque → impossible de debug.
+  // Maintenant : codes d'erreur distincts avec messages clairs.
+  const check = validateCodeDetailed(code);
+  if (!check.valid) {
+    const status = check.error === "missing" ? 400 : 403;
+    const usage = "bash <(curl -fsSL https://pocketmcp.onrender.com/api/install.sh?code=VOTRE_CODE)";
     return NextResponse.json(
-      { ok: false, error: "code d'accès requis — usage: bash <(curl -fsSL https://pocketmcp.onrender.com/api/install.sh?code=VOTRE_CODE)" },
-      { status: 403 }
+      {
+        ok: false,
+        error: check.error,  // "missing" | "invalid" | "expired"
+        message: check.message,
+        usage,
+      },
+      { status }
     );
   }
   const script = INSTALL_SCRIPT.replace(/USER_CODE/g, code);
