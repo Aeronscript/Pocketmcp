@@ -388,6 +388,34 @@ export function isValidCode(code: string | null | undefined): boolean {
   return !!temp;
 }
 
+// SRV-002 fix : validation détaillée pour distinguer missing/invalid/expired.
+// Permet à /api/install.sh de renvoyer des erreurs claires au lieu d'un 403 opaque.
+export type CodeValidationError = "missing" | "invalid" | "expired";
+
+export function validateCodeDetailed(code: string | null | undefined): {
+  valid: boolean;
+  error?: CodeValidationError;
+  message?: string;
+} {
+  if (!code || !code.trim()) {
+    return { valid: false, error: "missing", message: "code d'accès manquant" };
+  }
+  const data = loadAuthRaw();
+  // Code admin ?
+  if (hashCode(code) === data.adminHash) {
+    return { valid: true };
+  }
+  // Code pmcp_ temporaire ?
+  const temp = data.tempCodes.find((t) => t.code === code);
+  if (!temp) {
+    return { valid: false, error: "invalid", message: "code d'accès invalide ou inconnu" };
+  }
+  // Note : pour savoir si un code est "expiré", il faudrait un TTL sur tempCodes.
+  // Actuellement, les tempCodes n'expirent pas tant qu'ils ne sont pas claimés.
+  // Donc on ne retourne "expired" que si on ajoute un TTL plus tard.
+  return { valid: true };
+}
+
 export function extractCode(searchParams: URLSearchParams, authHeader: string | null): string {
   const fromQuery = searchParams.get("code");
   if (fromQuery) return fromQuery;
