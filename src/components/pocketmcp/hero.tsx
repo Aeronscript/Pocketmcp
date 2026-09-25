@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { Icon } from "./icon";
 
 export function Hero() {
   return (
@@ -76,7 +77,7 @@ export function Hero() {
 <span className="text-primary">→</span> installing bun 1.3+...
 <span className="text-primary">→</span> cloning pocketmcp server...
 <span className="text-primary">→</span> starting on :16384
-<span className="text-emerald-400">✓</span> <span className="text-foreground">dashboard live at localhost:16384</span>
+<Icon name="check" className="inline h-4 w-4 text-emerald-400" /> <span className="text-foreground">dashboard live at localhost:16384</span>
 <span className="text-primary cursor-blink"></span>
               </pre>
             </div>
