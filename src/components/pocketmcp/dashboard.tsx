@@ -3,16 +3,17 @@
 import { useState, useEffect, useRef } from "react";
 import { connectedClients, liveLogs, remoteEvents, instanceTree, type LogEntry } from "@/lib/data";
 import { LiveTerminal } from "./live-terminal";
+import { Icon } from "./icon";
 
 type Tab = "clients" | "terminal" | "console" | "execute" | "spy" | "tree";
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: "clients", label: "clients", icon: "▣" },
-  { id: "terminal", label: "terminal", icon: "▶" },
-  { id: "console", label: "console", icon: "≡" },
-  { id: "execute", label: "execute", icon: "▶" },
-  { id: "spy", label: "remote spy", icon: "◈" },
-  { id: "tree", label: "instances", icon: "▤" },
+  { id: "clients", label: "clients", icon: "users" },
+  { id: "terminal", label: "terminal", icon: "terminal" },
+  { id: "console", label: "console", icon: "list" },
+  { id: "execute", label: "execute", icon: "code" },
+  { id: "spy", label: "remote spy", icon: "search" },
+  { id: "tree", label: "instances", icon: "book" },
 ];
 
 export function Dashboard() {
@@ -97,7 +98,7 @@ export function Dashboard() {
                     : "text-muted-foreground border-transparent hover:text-foreground"
                 }`}
               >
-                <span className="text-[9px] sm:text-[10px]">{t.icon}</span>
+                <span className="text-[9px] sm:text-[10px]"><Icon name={t.icon} className="h-3 w-3" /></span>
                 {t.label}
               </button>
             ))}
@@ -246,7 +247,7 @@ end`);
             disabled={running}
             className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1 text-[10px] sm:text-[11px] font-mono text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
           >
-            {running ? "running..." : "▶ run"}
+            {running ? "running..." : "run"}
           </button>
         </div>
         <textarea
@@ -281,7 +282,7 @@ function SpyTab() {
       <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
         <span className="text-[10px] sm:text-[11px] text-muted-foreground font-mono">{"// "}{remoteEvents.length} remotes interceptés</span>
         <div className="flex items-center gap-1.5 text-[9px] sm:text-[10px] font-mono">
-          <span className="px-2 py-1 rounded bg-primary/10 text-primary border border-primary/20">● recording</span>
+          <span className="px-2 py-1 rounded bg-primary/10 text-primary border border-primary/20 inline-flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-primary pulse-green" /> recording</span>
           <span className="px-2 py-1 rounded bg-secondary/60 text-muted-foreground">clear</span>
         </div>
       </div>
@@ -321,7 +322,7 @@ function TreeTab() {
         style={{ paddingLeft: `${depth * 14 + 4}px` }}
       >
         <span className="text-muted-foreground/50">
-          {node.children ? "▸" : "·"}
+          {node.children ? <Icon name="arrowRight" className="h-3 w-3" /> : <span className="text-muted-foreground/50">·</span>}
         </span>
         <span className="text-foreground/90">{node.name}</span>
         <span className="text-[10px] text-muted-foreground/60">: {node.class}</span>
