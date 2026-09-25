@@ -1,103 +1,105 @@
 "use client";
 
+import { Icon } from "./icon";
+
 const TOOLS = [
   {
     name: "execute_code",
     desc: "exécute du code lua dans roblox, capture les prints/warns",
     args: "{ code: string, clientId? }",
     returns: "logs[] + result",
-    icon: "▶",
+    icon: "terminal",
   },
   {
     name: "decompile_script",
     desc: "décompile un localscript/modulescript par son path",
     args: "{ path: string }",
     returns: "source lua",
-    icon: "⚒",
+    icon: "tools",
   },
   {
     name: "get_instances",
     desc: "sélecteur css-like: game.ReplicatedStorage.Remotes.*",
     args: "{ selector: string }",
     returns: "Instance[]",
-    icon: "▤",
+    icon: "book",
   },
   {
     name: "spy_remotes",
     desc: "hook fireserver / invokeserver, capture les args",
     args: "{ enabled: bool, filter? }",
     returns: "void",
-    icon: "◈",
+    icon: "search",
   },
   {
     name: "list_remotes",
     desc: "résumé des remotes interceptés + events récents",
     args: "{ limit? }",
     returns: "summary + recent[]",
-    icon: "≡",
+    icon: "list",
   },
   {
     name: "click_gui",
     desc: "clique sur un textbutton par path via firesignal",
     args: "{ path: string }",
     returns: "bool",
-    icon: "◉",
+    icon: "gamepad",
   },
   {
     name: "screenshot",
     desc: "capture l'écran roblox (pc only : synapse, script-ware). sur mobile, répond avec alternatives",
     args: "{}",
     returns: "base64 | path | alternatives",
-    icon: "▣",
+    icon: "camera",
   },
   {
     name: "get_player_info",
     desc: "health, position, walkspeed, team, character",
     args: "{ playerName? }",
     returns: "PlayerInfo",
-    icon: "○",
+    icon: "users",
   },
   {
     name: "list_clients",
     desc: "liste les clients roblox connectés + supports",
     args: "{}",
     returns: "Client[]",
-    icon: "▣",
+    icon: "wifi",
   },
   {
     name: "get_logs",
     desc: "récupère les logs serveur récents",
     args: "{ limit? }",
     returns: "LogEntry[]",
-    icon: "▤",
+    icon: "book",
   },
   {
     name: "analyze_game",
     desc: "analyseur profond : scan scripts + spy remotes + liste boutons gui. plus puissant que spy_remotes",
     args: "{ mode?, scope?, pattern?, dynamicDuration?, interactGui? }",
     returns: "rapport remotes + gamepass + antiCheat + guiButtons",
-    icon: "🔍",
+    icon: "search",
   },
   {
     name: "find_gamepass_logic",
     desc: "cherche les checks gamepass (userownsgamepassasync) et génère un snippet de bypass lua",
     args: "{ gamepassId?, mode?, generateBypass? }",
     returns: "checksFound[] + bypassSnippet",
-    icon: "🎟",
+    icon: "ticket",
   },
   {
     name: "stealth_setup",
     desc: "active des protections anti-anti-cheat (bloque kick, cache hooks metatable, masque speed change)",
     args: "{ action?, features[] }",
     returns: "active + enabled[]",
-    icon: "🛡",
+    icon: "shield",
   },
   {
     name: "player_control",
     desc: "walkspeed, jumppower, noclip, teleport au clic, autoclick gui, infjump — toggleable",
     args: "{ action?, features[], value? }",
     returns: "enabled[] + activeFeatures[]",
-    icon: "🎮",
+    icon: "gamepad",
   },
 ];
 
@@ -125,8 +127,8 @@ export function Tools() {
               className="group rounded-lg border border-border/40 bg-card p-3 sm:p-4 hover:border-primary/40 transition-all"
             >
               <div className="flex items-start gap-2.5 sm:gap-3">
-                <div className="shrink-0 h-8 w-8 rounded-md bg-primary/10 ring-1 ring-primary/20 flex items-center justify-center text-primary font-mono text-sm">
-                  {t.icon}
+                <div className="shrink-0 h-8 w-8 rounded-md bg-primary/10 ring-1 ring-primary/20 flex items-center justify-center text-primary">
+                  <Icon name={t.icon} className="h-4 w-4" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-baseline gap-2 mb-1 flex-wrap">
