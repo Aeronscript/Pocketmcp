@@ -231,14 +231,29 @@ export function getServerIP(req: Request): string {
 // Attention : spoofable via x-forwarded-for — le vrai périmètre de sécurité est
 // le bind 127.0.0.1 (voir HOST ci-dessus).
 export function isLocalRequest(req: Request): boolean {
+  // Fix bypass X-Forwarded-For : on vérifie TOUS les headers d'IP,
+  // pas juste le premier de X-Forwarded-For. Un attaquant peut mettre
+  // "127.0.0.1, 192.168.1.50" pour bypass.
+  //
+  // Règle : si X-Forwarded-For ou X-Real-IP contient une IP non-localhost
+  // → on refuse l'accès local.
   const fwd = req.headers.get("x-forwarded-for");
   if (fwd) {
-    const first = fwd.split(",")[0].trim();
-    return first === "127.0.0.1" || first === "::1";
+    const ips = fwd.split(",").map(s => s.trim());
+    // Toutes les IPs dans la chaîne doivent être localhost
+    const allLocal = ips.every(ip => ip === "127.0.0.1" || ip === "::1" || ip === "localhost");
+    if (!allLocal) return false;
+    return true;
   }
   const realIp = req.headers.get("x-real-ip");
-  if (realIp) return realIp === "127.0.0.1" || realIp === "::1";
-  return true; // pas de header d'IP → probablement Bun direct en localhost
+  if (realIp) {
+    return realIp === "127.0.0.1" || realIp === "::1";
+  }
+  // Si HOST est bind sur 0.0.0.0, on ne peut pas faire confiance à
+  // l'absence de header d'IP → on refuse l'accès local.
+  if (HOST === "0.0.0.0") return false;
+  // Sinon (bind localhost), pas de header = probablement Bun direct
+  return true;
 }
 
 // Cleanup toutes les 10 min
