@@ -7,9 +7,10 @@ interface Props {
   onLogout?: () => void;
   role?: "admin" | "user" | null;
   deviceId?: string | null;
+  activeSection?: string;
 }
 
-export function Header({ onLogout, role, deviceId }: Props = {}) {
+export function Header({ onLogout, role, deviceId, activeSection }: Props = {}) {
   const [scrolled, setScrolled] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -50,9 +51,26 @@ export function Header({ onLogout, role, deviceId }: Props = {}) {
             </span>
           </a>
           <nav className="hidden lg:flex items-center gap-0.5">
-            {[{ label: "dash", href: "#dashboard" },{ label: "bridge", href: "#bridge" },{ label: "setup", href: "#setup" },{ label: "tools", href: "#tools" },{ label: "faq", href: "#faq" }].map((item) => (
-              <a key={item.href} href={item.href} className="px-3 py-1.5 text-[13px] text-foreground/70 hover:text-foreground rounded-md hover:bg-secondary/60 transition-colors font-mono">{item.label}</a>
-            ))}
+            {[{ label: "dash", href: "#dashboard" },{ label: "bridge", href: "#bridge" },{ label: "setup", href: "#setup" },{ label: "tools", href: "#tools" },{ label: "faq", href: "#faq" }].map((item) => {
+              const sectionId = item.href.slice(1);
+              const isActive = activeSection === sectionId;
+              return (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  className={`px-3 py-1.5 text-[13px] rounded-md transition-colors font-mono relative ${
+                    isActive
+                      ? "text-primary bg-primary/10"
+                      : "text-foreground/70 hover:text-foreground hover:bg-secondary/60"
+                  }`}
+                >
+                  {item.label}
+                  {isActive && (
+                    <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 h-0.5 w-4 rounded-full bg-primary" />
+                  )}
+                </a>
+              );
+            })}
           </nav>
           <div className="flex items-center gap-2">
             {/* Device ID : affiché avec style spécial pour admin */}
