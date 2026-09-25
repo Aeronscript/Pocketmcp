@@ -181,7 +181,7 @@ export function Bridge() {
 
           <div className="flex items-center justify-between px-2.5 sm:px-3 py-1.5 border-t border-border/40 bg-secondary/30 text-[9px] sm:text-[10px] font-mono text-muted-foreground">
             <div className="flex items-center gap-2 sm:gap-3">
-              <span className="text-primary">● lua</span>
+              <span className="text-primary inline-flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-primary" /> lua</span>
               <span>utf-8</span>
               <span>lf</span>
             </div>
