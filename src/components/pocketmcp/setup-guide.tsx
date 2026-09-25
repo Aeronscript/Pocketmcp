@@ -245,7 +245,7 @@ export function SetupGuide() {
         <div className="mt-6 rounded-xl border border-border/40 bg-card p-5">
           <div className="flex items-center justify-between gap-3 mb-3">
             <h3 className="text-sm font-mono font-semibold text-foreground">
-              <span className="text-primary">●</span> serveur live (démo)
+              <span className="text-primary inline-flex items-center"><span className="h-1.5 w-1.5 rounded-full bg-primary" /></span> serveur live (démo)
             </h3>
             <span className="text-[10px] font-mono text-muted-foreground">localhost:16384</span>
           </div>
