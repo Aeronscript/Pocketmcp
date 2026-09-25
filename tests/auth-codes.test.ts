@@ -58,7 +58,7 @@ describe("auth-codes", () => {
     expect(isValidCode(code)).toBe(true);
   });
 
-  it("isValidCode valide un temp code claimé, rejette un non-claimé", () => {
+  it("isValidCode valide un temp code (claimé ou non), rejette un code inconnu", () => {
     const code = "pmcp_abc123";
     const data = {
       adminHash: "",
@@ -68,8 +68,12 @@ describe("auth-codes", () => {
       ],
     };
     saveAuth(data);
+    // SRV-002 fix : isValidCode valide tout code existant (claimé ou non)
+    // car il est utilisé par /api/download?type=server pour le download.
+    // Le claim se fait via /api/site-auth/login (device binding).
     expect(isValidCode(code)).toBe(true);
-    expect(isValidCode("pmcp_other")).toBe(false);
+    expect(isValidCode("pmcp_other")).toBe(true);
+    expect(isValidCode("pmcp_unknown")).toBe(false);
   });
 
   it("loadAuth retourne un schéma vide si fichier absent", () => {
