@@ -45,9 +45,8 @@ export function Header({ onLogout, role, deviceId, activeSection }: Props = {}) 
               <span className="text-[13px] sm:text-[14px] font-semibold tracking-tight font-mono">pocket<span className="text-primary">mcp</span></span>
               <span className="text-[8px] sm:text-[9px] text-foreground/60 tracking-[0.18em] uppercase mt-0.5 font-mono hidden sm:block">{role === "admin" ? "admin" : "roblox · mobile"}</span>
             </div>
-            <span className="relative flex h-1.5 w-1.5 ml-1">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
-              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
+            <span className="flex h-1.5 w-1.5 ml-1">
+              <span className="inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
             </span>
           </a>
           <nav className="hidden lg:flex items-center gap-0.5">
