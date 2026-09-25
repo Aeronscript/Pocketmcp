@@ -320,7 +320,7 @@ export function LiveTerminal({ serverUrl = "http://localhost:16384" }: Props) {
         } else {
           term.write(`${COLORS.green}[ok]${COLORS.reset} ${online.length} client(s) connecté(s):\r\n`);
           for (const c of online) {
-            term.write(`  ${COLORS.green}●${COLORS.reset} ${COLORS.bold}${c.playerName}${COLORS.reset} `);
+            term.write(`  ${COLORS.green}[•]${COLORS.reset} ${COLORS.bold}${c.playerName}${COLORS.reset} `);
             term.write(`${COLORS.dim}(${c.clientId})${COLORS.reset} · ${c.executor} · ${c.transport}\r\n`);
           }
         }
