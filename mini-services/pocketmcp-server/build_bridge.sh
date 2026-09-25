@@ -28,6 +28,7 @@ MODULES=(
   "handlers.scan_exploit|handlers/scan_exploit.lua"
   "handlers.scan_race|handlers/scan_race.lua"
   "handlers.scan_trust|handlers/scan_trust.lua"
+  "handlers.ui_inject|handlers/ui_inject.lua"
   "http|http.lua"
   "websocket|websocket.lua"
 )
