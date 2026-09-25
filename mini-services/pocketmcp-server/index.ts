@@ -19,6 +19,7 @@ import {
   genId, jsonResponse, log, corsHeaders, CORS,
   checkServerRateLimit, getServerIP, isLocalRequest, setCurrentRequest,
   sendCommand,
+  TEMP_CODE_TTL, MAX_TTL,
 } from "./src/state";
 import { MCP_TOOLS, handleMCP, handleMCPStream } from "./src/tools";
 import { renderDashboard } from "./src/dashboard";
@@ -257,7 +258,12 @@ async function handleRequest(req: Request): Promise<Response> {
     if (code !== ADMIN_CODE) return jsonResponse({ ok: false, error: "admin requis" }, 403);
     try {
       const body = await req.json().catch(() => ({}));
-      const duration = Math.min(body.duration || TEMP_CODE_TTL, MAX_TTL);
+      // Fix : duration peut venir en secondes (UI) ou millisecondes (API direct).
+      // Si la valeur est < 1000, on suppose que ce sont des secondes → × 1000.
+      // Si >= 1000, ce sont déjà des millisecondes.
+      const rawDuration = body.duration || TEMP_CODE_TTL;
+      const durationMs = rawDuration < 1000 ? rawDuration * 1000 : rawDuration;
+      const duration = Math.min(durationMs, MAX_TTL);
       const tempCode = generateTempCode(body.label, duration);
       log("success", "auth", `Temp code généré: ${tempCode} (TTL ${duration / 1000}s)`);
       return jsonResponse({ ok: true, code: tempCode, ttl: duration / 1000 });
