@@ -14,10 +14,12 @@ import { DocsPage } from "@/components/pocketmcp/docs-page";
 import { LoginOverlay } from "@/components/pocketmcp/login-overlay";
 import { useAuth } from "@/components/pocketmcp/use-auth";
 import { AdminCodeManager } from "@/components/pocketmcp/admin-code-manager";
+import { ScrollProgress } from "@/components/pocketmcp/scroll-progress";
 
 export default function Home() {
   const { isLoggedIn, role, deviceId, loading, login, logout } = useAuth();
   const [view, setView] = useState<"home" | "docs">("home");
+  const [activeSection, setActiveSection] = useState("");
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && view === "docs") setView("home"); };
@@ -36,7 +38,8 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <Header onLogout={logout} role={role} deviceId={deviceId} />
+      <ScrollProgress onActiveSection={setActiveSection} />
+      <Header onLogout={logout} role={role} deviceId={deviceId} activeSection={activeSection} />
       <main className="flex-1">
         <Hero />
         <Dashboard />
