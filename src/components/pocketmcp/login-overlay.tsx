@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { toast } from "sonner";
+import { Icon } from "./icon";
 
 interface Props {
   onLogin: (code: string) => Promise<{ ok: boolean; error?: string }>;
@@ -89,7 +90,7 @@ export function LoginOverlay({ onLogin }: Props) {
               </div>
               <form onSubmit={handleSubmit} className="space-y-3">
                 <input type="password" value={code} onChange={(e) => setCode(e.target.value)} placeholder="votre code d'accès" autoFocus disabled={loading} className="w-full rounded-lg border border-border bg-secondary/30 px-4 py-3 text-[13px] font-mono text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition disabled:opacity-50" />
-                {error && (<div className="rounded-md border border-rose-500/30 bg-rose-500/5 px-3 py-2 text-[11px] font-mono text-rose-400">✗ {error}</div>)}
+                {error && (<div className="rounded-md border border-rose-500/30 bg-rose-500/5 px-3 py-2 text-[11px] font-mono text-rose-400 flex items-center gap-1.5"><Icon name="x" className="h-3 w-3 shrink-0" /> {error}</div>)}
                 <button type="submit" disabled={loading || !code.trim()} className="w-full rounded-lg bg-primary px-4 py-3 text-[13px] font-mono font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-primary/20">{loading ? "connexion..." : "se connecter"}</button>
               </form>
               <div className="mt-6 pt-4 border-t border-border/40 text-center">
@@ -99,7 +100,7 @@ export function LoginOverlay({ onLogin }: Props) {
           ) : reqSent ? (
             <>
               <div className="text-center mb-4">
-                <div className="text-3xl mb-3">✓</div>
+                <div className="flex justify-center mb-3"><Icon name="check" className="h-8 w-8 text-primary" strokeWidth={2.5} /></div>
                 <h2 className="text-[15px] font-mono font-semibold text-primary mb-2">demande envoyée</h2>
                 <p className="text-[12px] text-foreground/60 leading-relaxed font-mono">votre demande a été transmise à l'administrateur. un email pré-rempli a été ouvert — envoyez-le pour confirmer. vous recevrez votre code d'accès par email une fois approuvé.</p>
               </div>
@@ -112,7 +113,7 @@ export function LoginOverlay({ onLogin }: Props) {
                 <p className="text-[11px] text-foreground/50 font-mono">l'admin validera votre demande manuellement</p>
               </div>
               <div className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 mb-4">
-                <div className="text-[10px] font-mono text-amber-300/90 leading-relaxed">⚠ utilisez votre <strong>vrai compte gmail</strong>. les fausses adresses et les demandes sans message sérieux seront rejetées.</div>
+                <div className="text-[10px] font-mono text-amber-300/90 leading-relaxed flex items-start gap-1.5"><Icon name="alert" className="h-3 w-3 shrink-0 mt-0.5" /> <span>utilisez votre <strong>vrai compte gmail</strong>. les fausses adresses et les demandes sans message sérieux seront rejetées.</span></div>
               </div>
               {/* Device ID : affiché pour que l'utilisateur puisse le copier et l'envoyer à l'admin */}
               {deviceId && (
@@ -126,7 +127,7 @@ export function LoginOverlay({ onLogin }: Props) {
                   >
                     <code className="flex-1 text-[11px] font-mono text-primary break-all text-left">{deviceId.slice(0, 24)}…{deviceId.slice(-8)}</code>
                     <span className="shrink-0 text-[9px] font-mono text-foreground/40 group-hover:text-primary transition-colors">
-                      {copied ? "✓ copié" : "copier"}
+                      {copied ? (<span className="flex items-center gap-1"><Icon name="check" className="h-2.5 w-2.5" /> copié</span>) : "copier"}
                     </span>
                   </button>
                   <div className="text-[9px] font-mono text-foreground/30 mt-1.5">cet ID identifie votre appareil de façon unique et permanente. il est inclus automatiquement dans votre demande.</div>
@@ -136,7 +137,7 @@ export function LoginOverlay({ onLogin }: Props) {
                 <div><label className="text-[10px] font-mono text-foreground/40 uppercase tracking-wider mb-1 block">votre nom *</label><input type="text" value={reqName} onChange={(e) => setReqName(e.target.value)} placeholder="ex: Mohamed Ali" required minLength={2} disabled={loading} className="w-full rounded-lg border border-border bg-secondary/30 px-4 py-2.5 text-[13px] font-mono text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition disabled:opacity-50" /></div>
                 <div><label className="text-[10px] font-mono text-foreground/40 uppercase tracking-wider mb-1 block">votre gmail * <span className="text-amber-400/60">(vrai compte — sera vérifié)</span></label><input type="email" value={reqEmail} onChange={(e) => setReqEmail(e.target.value)} placeholder="votre.vrai.compte@gmail.com" required pattern="[a-z0-9.]+@gmail\.com" disabled={loading} className="w-full rounded-lg border border-border bg-secondary/30 px-4 py-2.5 text-[13px] font-mono text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition disabled:opacity-50" /></div>
                 <div><label className="text-[10px] font-mono text-foreground/40 uppercase tracking-wider mb-1 block">pourquoi voulez-vous l'accès ? * <span className="text-foreground/30">(min 20 caractères)</span></label><textarea value={reqMessage} onChange={(e) => setReqMessage(e.target.value)} placeholder="expliquez qui vous êtes, pourquoi vous voulez utiliser pocketmcp..." rows={4} required minLength={20} disabled={loading} className="w-full rounded-lg border border-border bg-secondary/30 px-4 py-2.5 text-[12px] font-mono text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition disabled:opacity-50 resize-none" /><div className="text-right text-[10px] font-mono text-foreground/30 mt-0.5">{reqMessage.length} caractères</div></div>
-                {error && (<div className="rounded-md border border-rose-500/30 bg-rose-500/5 px-3 py-2 text-[11px] font-mono text-rose-400">✗ {error}</div>)}
+                {error && (<div className="rounded-md border border-rose-500/30 bg-rose-500/5 px-3 py-2 text-[11px] font-mono text-rose-400 flex items-center gap-1.5"><Icon name="x" className="h-3 w-3 shrink-0" /> {error}</div>)}
                 <button type="submit" disabled={loading} className="w-full rounded-lg bg-primary px-4 py-3 text-[13px] font-mono font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-all shadow-lg shadow-primary/20">{loading ? "envoi..." : "envoyer la demande"}</button>
               </form>
               <div className="mt-4 pt-4 border-t border-border/40 text-center"><button onClick={() => { setMode("login"); setError(""); }} className="text-[11px] font-mono text-foreground/40 hover:text-foreground transition-colors">← j'ai déjà un code</button></div>
