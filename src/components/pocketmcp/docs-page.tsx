@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { Icon } from "./icon";
 
 type Section =
   | "intro"
@@ -14,17 +15,17 @@ type Section =
   | "admin";
 
 const SECTIONS: { id: Section; label: string; icon: string; desc: string }[] = [
-  { id: "intro", label: "introduction", icon: "▸", desc: "ce qu'est pocketmcp" },
-  { id: "architecture", label: "architecture", icon: "▤", desc: "comment ça marche" },
-  { id: "install", label: "installation", icon: "⬇", desc: "setup pas à pas" },
-  { id: "api", label: "api reference", icon: "◈", desc: "endpoints http + mcp" },
-  { id: "config", label: "configuration", icon: "⚙", desc: "variables + clients ia" },
-  { id: "examples", label: "exemples", icon: "▶", desc: "snippets lua prêts" },
-  { id: "troubleshoot", label: "dépannage", icon: "?", desc: "problèmes courants" },
-  { id: "security", label: "sécurité", icon: "⚠", desc: "risques + bonnes pratiques" },
+  { id: "intro", label: "introduction", icon: "info", desc: "ce qu'est pocketmcp" },
+  { id: "architecture", label: "architecture", icon: "book", desc: "comment ça marche" },
+  { id: "install", label: "installation", icon: "download", desc: "setup pas à pas" },
+  { id: "api", label: "api reference", icon: "terminal", desc: "endpoints http + mcp" },
+  { id: "config", label: "configuration", icon: "settings", desc: "variables + clients ia" },
+  { id: "examples", label: "exemples", icon: "code", desc: "snippets lua prêts" },
+  { id: "troubleshoot", label: "dépannage", icon: "alert", desc: "problèmes courants" },
+  { id: "security", label: "sécurité", icon: "shield", desc: "risques + bonnes pratiques" },
 ];
 
-const ADMIN_SECTION = { id: "admin" as Section, label: "code admin", icon: "🔐", desc: "générer des codes d'accès" };
+const ADMIN_SECTION = { id: "admin" as Section, label: "code admin", icon: "lock", desc: "générer des codes d'accès" };
 
 interface Props {
   onBack: () => void;
@@ -140,8 +141,8 @@ export function DocsPage({ onBack, onNavigate, isAdmin, AdminComponent }: Props)
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
-                    <span className={`text-[12px] shrink-0 ${section === s.id ? "text-primary" : "text-foreground/40 group-hover:text-foreground/70"}`}>
-                      {s.icon}
+                    <span className={`shrink-0 ${section === s.id ? "text-primary" : "text-foreground/40 group-hover:text-foreground/70"}`}>
+                      <Icon name={s.icon} className="h-4 w-4" />
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="text-[13px] font-mono font-medium truncate">{s.label}</div>
@@ -287,11 +288,11 @@ function Callout({ type = "info", title, children }: { type?: "info" | "warn" | 
     danger: "border-rose-500/30 bg-rose-500/5 text-rose-300",
     success: "border-primary/30 bg-primary/5 text-primary",
   };
-  const icons = { info: "ℹ", warn: "⚠", danger: "✗", success: "✓" };
+  const icons = { info: "info", warn: "alert", danger: "x", success: "check" };
   return (
     <div className={`rounded-lg border p-3.5 sm:p-4 my-4 ${styles[type]}`}>
       <div className="flex items-start gap-2.5">
-        <span className="text-sm shrink-0 mt-0.5">{icons[type]}</span>
+        <span className="shrink-0 mt-0.5"><Icon name={icons[type]} className="h-4 w-4" /></span>
         <div className="flex-1 min-w-0">
           <div className="text-[12px] sm:text-[13px] font-mono font-semibold mb-1">{title}</div>
           <div className="text-[11px] sm:text-[12px] text-foreground/75 leading-relaxed font-mono">{children}</div>
@@ -1189,7 +1190,7 @@ sur le pc, testez :
 
 puis configurez votre client ia avec cette url.
 
-⚠ auth obligatoire (code admin + whitelist). bind localhost par défaut. réseau de confiance uniquement si --host 0.0.0.0.`,
+Attention : auth obligatoire (code admin + whitelist). bind localhost par défaut. réseau de confiance uniquement si --host 0.0.0.0.`,
     },
     {
       q: "le serveur consomme beaucoup de batterie",
@@ -1291,7 +1292,7 @@ function SecuritySection({ onBack }: { onBack: () => void }) {
           { t: "déconnexion propre", d: "coupez le serveur quand vous ne l'utilisez pas. Ctrl+C dans termux." },
         ].map((p, i) => (
           <div key={i} className="flex items-start gap-3 p-3 rounded-lg border border-border/40 bg-card">
-            <span className="text-primary shrink-0 mt-0.5">✓</span>
+            <Icon name="check" className="h-4 w-4 text-primary shrink-0 mt-0.5" />
             <div>
               <div className="text-[13px] font-mono font-semibold text-foreground">{p.t}</div>
               <div className="text-[11px] text-foreground/60 mt-0.5 font-mono leading-relaxed">{p.d}</div>
