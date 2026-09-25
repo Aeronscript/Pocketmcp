@@ -16,7 +16,7 @@ type Section =
 
 const SECTIONS: { id: Section; label: string; icon: string; desc: string }[] = [
   { id: "intro", label: "introduction", icon: "info", desc: "ce qu'est pocketmcp" },
-  { id: "architecture", label: "architecture", icon: "book", desc: "comment ça marche" },
+  { id: "architecture", label: "architecture", icon: "layers", desc: "comment ça marche" },
   { id: "install", label: "installation", icon: "download", desc: "setup pas à pas" },
   { id: "api", label: "api reference", icon: "terminal", desc: "endpoints http + mcp" },
   { id: "config", label: "configuration", icon: "settings", desc: "variables + clients ia" },
@@ -25,7 +25,7 @@ const SECTIONS: { id: Section; label: string; icon: string; desc: string }[] = [
   { id: "security", label: "sécurité", icon: "shield", desc: "risques + bonnes pratiques" },
 ];
 
-const ADMIN_SECTION = { id: "admin" as Section, label: "code admin", icon: "lock", desc: "générer des codes d'accès" };
+const ADMIN_SECTION = { id: "admin" as Section, label: "code admin", icon: "key", desc: "générer des codes d'accès" };
 
 interface Props {
   onBack: () => void;
