@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { Icon } from "./icon";
 
 const BRIDGE_MINIMAL = `-- dans votre executeur mobile, juste ça :
 loadstring(game:HttpGet("http://localhost:16384/script.luau"))()
@@ -69,7 +70,7 @@ export function Bridge() {
         {/* Test results banner */}
         <div className="mb-6 rounded-xl border border-primary/30 bg-primary/5 p-3 sm:p-5">
           <div className="flex items-start gap-2.5 sm:gap-3">
-            <span className="text-primary text-base sm:text-lg shrink-0">✓</span>
+            <Icon name="check" className="h-5 w-5 text-primary shrink-0" />
             <div className="flex-1 min-w-0">
               <h3 className="text-[12px] sm:text-sm font-mono font-semibold text-primary mb-3">
                 testé sur roblox mobile (delta) — 100% fonctionnel
@@ -91,7 +92,7 @@ export function Bridge() {
                         {t.name}
                       </span>
                       <span className={`text-xs ${t.status === "ok" ? "text-primary" : "text-rose-400"}`}>
-                        {t.status === "ok" ? "✓" : "✗"}
+                        {t.status === "ok" ? <Icon name="check" className="inline h-3 w-3 text-primary" /> : <Icon name="x" className="inline h-3 w-3 text-rose-400" />}
                       </span>
                     </div>
                     <div className="text-[10px] text-muted-foreground mt-0.5 font-mono">
@@ -195,7 +196,7 @@ export function Bridge() {
         <div className="mt-4 grid sm:grid-cols-2 gap-3">
           <div className="rounded-lg border border-primary/30 bg-primary/5 p-3.5">
             <div className="flex items-start gap-2.5">
-              <span className="text-primary text-sm shrink-0">✓</span>
+              <Icon name="check" className="h-4 w-4 text-primary shrink-0" />
               <div>
                 <div className="text-[12px] font-mono font-semibold text-primary mb-1">auto-détection websocket</div>
                 <p className="text-[11px] text-muted-foreground leading-relaxed font-mono">
@@ -207,7 +208,7 @@ export function Bridge() {
           </div>
           <div className="rounded-lg border border-primary/30 bg-primary/5 p-3.5">
             <div className="flex items-start gap-2.5">
-              <span className="text-primary text-sm shrink-0">✓</span>
+              <Icon name="check" className="h-4 w-4 text-primary shrink-0" />
               <div>
                 <div className="text-[12px] font-mono font-semibold text-primary mb-1">auto-fallback request → httpget</div>
                 <p className="text-[11px] text-muted-foreground leading-relaxed font-mono">
