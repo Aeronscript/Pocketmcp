@@ -1180,6 +1180,52 @@ return M
 
 end)()
 
+_G.__POCKETMCP_MODULES["handlers.ui_inject"] = (function()
+-- ════════════════════════════════════════════════════════════
+-- PocketMCP Bridge · handlers/ui_inject.lua (stub)
+--
+-- CLT-001 fix : stub PocketUI pour compatibilité avec l'ancien bridge.
+--
+-- L'ancien bridge exposait une lib PocketUI via getgenv().PocketUI pour
+-- afficher des overlays in-game (buttons, panels). Le nouveau bridge
+-- (v0.5) ne l'incluait plus → erreur au require("handlers.ui_inject").
+--
+-- Ce stub restaure le require sans casser le bridge, mais n'implémente
+-- pas réellement PocketUI (la lib complète n'est pas dans le repo).
+-- Les appels retournent un message "non disponible" pour ne pas crasher.
+--
+-- Pour restaurer PocketUI complètement, il faut :
+-- 1. Récupérer le contenu original de handlers/ui_inject.lua (depuis
+--    l'ancien bridge pocketmcp/)
+-- 2. Le coller ici en remplacement du stub
+-- 3. Rebuilder bridge.built.lua via bash build_bridge.sh
+-- ════════════════════════════════════════════════════════════
+
+local M = {}
+
+-- ui_inject : expose PocketUI dans getgenv() pour les scripts utilisateurs.
+-- Stub : ne fait rien, mais ne crash pas.
+function M.ui_inject(cmd)
+    -- Marque PocketUI comme "non disponible" pour que les scripts qui
+    -- testent getgenv().PocketUI ne crash pas.
+    if not getgenv().PocketUI then
+        getgenv().PocketUI = {
+            available = false,
+            version = "stub",
+            message = "PocketUI non disponible dans cette version du bridge. Restaure handlers/ui_inject.lua depuis l'ancien bridge.",
+        }
+    end
+    return {
+        ok = true,
+        stub = true,
+        message = "ui_inject stub : PocketUI exposé comme non disponible",
+    }
+end
+
+return M
+
+end)()
+
 _G.__POCKETMCP_MODULES["http"] = (function()
 -- ════════════════════════════════════════════════════════════
 -- PocketMCP Bridge · http.lua
@@ -1528,6 +1574,7 @@ local hPlayer = myRequire("handlers.player")
 local hScan = myRequire("handlers.scan_exploit")
 local hRace = myRequire("handlers.scan_race")
 local hTrust = myRequire("handlers.scan_trust")
+local hUi = myRequire("handlers.ui_inject")
 
 local http = myRequire("http")
 local websocket = myRequire("websocket")
@@ -1545,6 +1592,7 @@ local handlers = {
     scan_exploit = hScan.scan_exploit,
     scan_race = hRace.scan_race,
     scan_trust = hTrust.scan_trust,
+    ui_inject = hUi.ui_inject,
     -- screenshot (inline car dépend d'ENV seulement)
     screenshot = function(cmd)
         if ENV.isSupported("screenshot") then
@@ -1658,6 +1706,11 @@ state._pollingThread = nil
 -- ─── Démarrage ───────────────────────────────────────────────
 register()
 
+-- CLT-004 fix : config.FORCE_HTTP est désormais honoré.
+-- Priorités (du plus fort au plus faible) :
+--   1. config.FORCE_WS = true → WebSocket forcé (override tout)
+--   2. config.FORCE_HTTP = true → HTTP polling forcé (default)
+--   3. sinon → auto-détection (essaie WS, fallback HTTP)
 if config.FORCE_WS then
     logger.print("WebSocket forcé (EnableWebSocket=true)")
     if not websocket.tryWebSocket() then
@@ -1667,6 +1720,11 @@ if config.FORCE_WS then
     else
         state.transport = "WebSocket"
     end
+elseif config.FORCE_HTTP then
+    -- CLT-004 fix : FORCE_HTTP honoré — skip WebSocket, HTTP polling direct.
+    logger.print("HTTP polling forcé (FORCE_HTTP=true, le plus fiable sur mobile)")
+    state.transport = "HTTP Polling"
+    http.startHttpPolling()
 else
     task.spawn(function()
         local wsOk = websocket.tryWebSocket()
