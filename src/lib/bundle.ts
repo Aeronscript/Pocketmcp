@@ -40,10 +40,19 @@ function makeHeader(filename: string, size: number, mode: number): Uint8Array {
   write(156, "0");
   write(257, "ustar\0");
   write(263, "00");
-  // checksum placeholder (offset 148, 8 bytes space)
+
+  // SRV-001 fix : checksum tar POSIX standard.
+  // La spec POSIX tar exige que le checksum (offset 148-155) soit calculé
+  // en traitant ces 8 octets comme des espaces (0x20), pas comme des zéros.
+  // Sans ça, GNU tar et python tarfile rejettent l'archive ("bad checksum").
+  // On remplit d'abord avec des espaces, calcule le checksum, puis écrit
+  // le checksum final au même endroit.
+  for (let i = 148; i < 156; i++) header[i] = 0x20; // 8 espaces
   let checksum = 0;
   for (let i = 0; i < 512; i++) checksum += header[i];
-  write(148, checksum.toString(8).padStart(6, "0") + "\0 ");
+  // Format : 6 chiffres octaux + NUL + space (8 octets total)
+  const checksumStr = checksum.toString(8).padStart(6, "0") + "\0 ";
+  write(148, checksumStr);
   return header;
 }
 
